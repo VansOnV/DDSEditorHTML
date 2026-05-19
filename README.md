@@ -10,7 +10,7 @@ https://vansonv.github.io/DDSEditorHTML/
 
 
 
-## DDS Editor v1.2 by Me!
+## DDS Editor v1.4 by Me!
 
 ***Features***
 
