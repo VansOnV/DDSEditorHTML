@@ -10,15 +10,17 @@ https://vansonv.github.io/DDSEditorHTML/
 
 
 
-## DDS Editor v1.4 by Me!
+## DDS Editor v1.5 by Me!
 
 ***Features***
 
 - Batch Processing
 - Batch Resizing
 - Batch Upscaler
+- Smart Resizer (Has batch support)
 - Select a whole folder containing images
 - Supports converting to DXT1, DXT3, DXT5, BC7, A8, L8, A8R8B8G8, A1R5G5B5, ATI1, ATI2 DDS Formats!
+- Auto convert A8R8G8B8 textures to DXT1 or DXT5 (optional)
 - Supports converting DDS<>PNG<>JPEG
 - Image Resizer + Size Presets
 - Image Editor
