@@ -673,7 +673,7 @@ canvas{display:none;}
 ▐█▄▄▄▄▄▌  ▐█▌        ▐█▌        ▐█▄▄▄▄▄▄▄▄▌ ▐█▄▄▄▄▄▄▌ ▐█▌</div>
 
   </div>
-  <div id="ascii-sub">⚡ BY VANS ⚡ v1.4</div>
+  <div id="ascii-sub">⚡ BY VANS ⚡ v1.5</div>
 </div>
 
 <!-- TAB BAR -->
@@ -716,8 +716,40 @@ canvas{display:none;}
     <div class="slabel slabel-rgb slabel-rgb--delay1">Size Presets</div>
     <div id="size-grid"></div>
 
+    <!-- SMART RESIZE RULES -->
+    <div class="slabel slabel-rgb slabel-rgb--delay2">Smart Resize Rules</div>
+    <div class="check-row">
+      <input type="checkbox" id="skip-smaller-chk" checked/>
+      <label class="check-label" for="skip-smaller-chk">Skip textures smaller than target</label>
+    </div>
+    <div id="skip-smaller-opts" style="margin-left:22px;margin-bottom:6px;">
+      <div class="field-label" style="margin-bottom:4px;">Instead, downscale skipped textures:</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="size-btn active" id="skip-scale-keep" onclick="selSkipScale('keep')" style="flex:1;padding:5px 4px;font-size:9px;">Keep as-is</button>
+        <button class="size-btn" id="skip-scale-half" onclick="selSkipScale('half')" style="flex:1;padding:5px 4px;font-size:9px;">½× (halve)</button>
+        <button class="size-btn" id="skip-scale-quarter" onclick="selSkipScale('quarter')" style="flex:1;padding:5px 4px;font-size:9px;">¼× (quarter)</button>
+      </div>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="protect-tiny-chk" checked/>
+      <label class="check-label" for="protect-tiny-chk">Never resize textures smaller than:</label>
+    </div>
+    <div id="protect-tiny-opts" style="margin-left:22px;margin-bottom:6px;">
+      <div class="row" style="margin-bottom:0;">
+        <div>
+          <div class="field-label">MIN WIDTH (px)</div>
+          <input type="number" id="protect-tiny-w" value="64" min="1" max="4096" placeholder="64"/>
+        </div>
+        <div>
+          <div class="field-label">MIN HEIGHT (px)</div>
+          <input type="number" id="protect-tiny-h" value="64" min="1" max="4096" placeholder="64"/>
+        </div>
+      </div>
+      <div style="font-size:8px;color:var(--text2);margin-top:4px;line-height:1.5;">Textures at or below this size are never resized or converted.</div>
+    </div>
+
     <!-- CUSTOM SIZE -->
-    <div class="slabel slabel-rgb slabel-rgb--delay2">Custom Size</div>
+    <div class="slabel slabel-rgb slabel-rgb--delay2" style="margin-top:8px;">Custom Size</div>
     <div class="check-row" style="margin-bottom:6px;">
       <input type="checkbox" id="link-wh-chk"/>
       <label class="check-label" for="link-wh-chk">Constrain proportions (link W &amp; H)</label>
@@ -758,6 +790,19 @@ canvas{display:none;}
     <div class="check-row">
       <input type="checkbox" id="overwrite-chk" checked/>
       <label class="check-label" for="overwrite-chk">Overwrite on export</label>
+    </div>
+    <div class="slabel" style="margin-top:8px;">A8R8G8B8 Auto-Convert</div>
+    <div class="check-row">
+      <input type="checkbox" id="autoconv-a8r8g8b8-chk"/>
+      <label class="check-label" for="autoconv-a8r8g8b8-chk">Auto-convert A8R8G8B8 → compressed</label>
+    </div>
+    <div id="autoconv-a8r8g8b8-opts" style="margin-left:22px;margin-bottom:6px;display:none;">
+      <div class="field-label" style="margin-bottom:4px;">Convert A8R8G8B8 to:</div>
+      <div style="display:flex;gap:4px;">
+        <button class="size-btn active" id="a8r8-target-dxt5" onclick="selA8R8Target('DXT5')" style="flex:1;padding:5px 4px;font-size:9px;">DXT5</button>
+        <button class="size-btn" id="a8r8-target-dxt1" onclick="selA8R8Target('DXT1')" style="flex:1;padding:5px 4px;font-size:9px;">DXT1</button>
+      </div>
+      <div style="font-size:8px;color:var(--text2);margin-top:4px;line-height:1.5;">DXT5 keeps alpha channel. DXT1 = no alpha, smaller file.</div>
     </div>
 
   </div><!-- /sidebar-scroll -->
@@ -837,55 +882,7 @@ canvas{display:none;}
         </div>
 
         <!-- Active tool options -->
-        <div class="slabel slabel-rgb slabel-rgb--delay1">Tool Options</div>
-
-        <!-- Brush/pencil options -->
-        <div id="pe-brush-controls">
-          <div class="pe-pixel-size-wrap">
-            <div class="field-label">SIZE</div>
-            <input type="number" id="pe-pixel-size" value="1" min="1" max="64"/>
-            <div class="field-label" style="margin-left:4px;margin-bottom:0;">px</div>
-          </div>
-          <div class="pe-color-row">
-            <div class="field-label" style="margin-bottom:0;">COLOR</div>
-            <div class="pe-color-swatch" id="pe-fg-swatch" style="background:#00f5ff;" onclick="document.getElementById('pe-fg-picker').click()"></div>
-            <input type="color" id="pe-fg-picker" value="#00f5ff" oninput="peFGColor(this.value)"/>
-            <div class="check-label">FG</div>
-            <div class="pe-color-swatch" id="pe-bg-swatch" style="background:#000000;" onclick="document.getElementById('pe-bg-picker').click()"></div>
-            <input type="color" id="pe-bg-picker" value="#000000" oninput="peBGColor(this.value)"/>
-            <div class="check-label">BG</div>
-          </div>
-          <div class="pe-slider-row">
-            <div class="pe-slider-label"><span>Opacity</span><span id="pe-opacity-val">100%</span></div>
-            <input type="range" id="pe-opacity" min="0" max="100" value="100" oninput="peOpacity(this.value)"/>
-          </div>
-        </div>
-
-        <!-- Text tool -->
-        <div id="pe-text-controls">
-          <div class="field-label">TEXT CONTENT</div>
-          <input type="text" id="pe-text-input-field" placeholder="Enter text..." value="DDS Editor"/>
-          <div class="row">
-            <div><div class="field-label">SIZE</div><input type="number" id="pe-font-size" value="24" min="6" max="256"/></div>
-            <div><div class="field-label">FONT</div>
-              <select id="pe-font-family">
-                <option>monospace</option>
-                <option>sans-serif</option>
-                <option>serif</option>
-                <option>cursive</option>
-              </select>
-            </div>
-          </div>
-          <div class="pe-color-row">
-            <div class="field-label" style="margin-bottom:0;">COLOR</div>
-            <div class="pe-color-swatch" id="pe-text-swatch" style="background:#00f5ff;" onclick="document.getElementById('pe-text-picker').click()"></div>
-            <input type="color" id="pe-text-picker" value="#00f5ff" oninput="peTextColor(this.value)"/>
-          </div>
-          <button class="btn btn-cyan" style="padding:7px;margin-bottom:6px;" onclick="pePlaceText()">⊕ Place Text</button>
-        </div>
-
-        <!-- Adjustments -->
-        <div class="slabel slabel-rgb slabel-rgb--delay2">Adjustments</div>
+        <div class="slabel slabel-rgb slabel-rgb--delay1">Adjustments</div>
         <div class="pe-slider-row">
           <div class="pe-slider-label"><span>Brightness</span></div>
           <div style="display:flex;align-items:center;gap:6px;">
@@ -920,15 +917,6 @@ canvas{display:none;}
         </div>
         <button class="btn btn-purple" style="padding:7px;margin-bottom:6px;" onclick="peApplyAdjustments()">✓ Apply Adjustments</button>
 
-        <!-- Background removal -->
-        <div class="slabel slabel-rgb slabel-rgb--delay4">Background</div>
-        <div class="pe-slider-row">
-          <div class="pe-slider-label"><span>BG Threshold</span><span id="pe-bg-thresh-val">30</span></div>
-          <input type="range" id="pe-bg-thresh" min="1" max="128" value="30" oninput="document.getElementById('pe-bg-thresh-val').textContent=this.value"/>
-        </div>
-        <button class="btn btn-pink" style="padding:7px;margin-bottom:4px;" onclick="peRemoveBG()">✂ Remove Background</button>
-        <button class="btn btn-blue" style="padding:7px;margin-bottom:6px;" onclick="peFillBG()">🎨 Fill Background</button>
-
         <!-- Flip/Rotate -->
         <div class="slabel">Transform</div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
@@ -952,15 +940,8 @@ canvas{display:none;}
 
     <!-- TOOLBAR -->
     <div id="pe-toolbar">
-      <button class="pe-tool-btn active" id="petool-pencil" title="Pixel Pen" onclick="peTool('pencil')">✏</button>
-      <button class="pe-tool-btn" id="petool-brush" title="Brush" onclick="peTool('brush')">🖌</button>
-      <button class="pe-tool-btn" id="petool-eraser" title="Pixel Eraser" onclick="peTool('eraser')">◻</button>
-      <button class="pe-tool-btn" id="petool-fill" title="Bucket Fill" onclick="peTool('fill')">🪣</button>
-      <div class="pe-tool-sep"></div>
-      <button class="pe-tool-btn" id="petool-crop" title="Crop" onclick="peTool('crop')">⊡</button>
-      <div class="pe-tool-sep"></div>
-      <button class="pe-tool-btn" title="Undo" onclick="peUndo()">↩</button>
-      <button class="pe-tool-btn" title="Redo" onclick="peRedo()">↪</button>
+      <button class="pe-tool-btn" title="Undo" onclick="peUndo()">↩ Undo</button>
+      <button class="pe-tool-btn" title="Redo" onclick="peRedo()">↪ Redo</button>
       <div class="pe-tool-sep"></div>
       <button class="pe-tool-btn" title="Zoom In" onclick="peZoom(1.25)">＋</button>
       <button class="pe-tool-btn" title="Zoom Out" onclick="peZoom(0.8)">－</button>
@@ -1250,6 +1231,13 @@ const S = {
   outH: 0,
   outDir: null,
   sameDir: true,
+  skipSmaller: true,
+  skipScale: 'keep',
+  protectTiny: true,
+  protectTinyW: 64,
+  protectTinyH: 64,
+  autoConvA8R8G8B8: false,
+  a8r8Target: 'DXT5',
 };
 let nextId = 1;
 
@@ -1287,6 +1275,22 @@ const SIZE_PRESETS = [
 ];
 
 const MIP_PRESETS = ['Keep',1,2,3,4,5,6,7,8,9,10];
+
+function selSkipScale(mode) {
+  S.skipScale = mode;
+  ['keep','half','quarter'].forEach(m => {
+    const b = document.getElementById('skip-scale-' + m);
+    if (b) b.classList.toggle('active', m === mode);
+  });
+}
+
+function selA8R8Target(fmt) {
+  S.a8r8Target = fmt;
+  ['DXT5','DXT1'].forEach(f => {
+    const b = document.getElementById('a8r8-target-' + f.toLowerCase());
+    if (b) b.classList.toggle('active', f === fmt);
+  });
+}
 
 // ═══════════════════════════════════════════════════════
 //  INIT UI
@@ -1361,6 +1365,25 @@ function initUI() {
     mr.appendChild(b);
   }
   S.mipLevels = 'keep';
+
+  document.getElementById('skip-smaller-chk').addEventListener('change', function() {
+    S.skipSmaller = this.checked;
+    document.getElementById('skip-smaller-opts').style.display = this.checked ? 'block' : 'none';
+  });
+  document.getElementById('protect-tiny-chk').addEventListener('change', function() {
+    S.protectTiny = this.checked;
+    document.getElementById('protect-tiny-opts').style.display = this.checked ? 'block' : 'none';
+  });
+  document.getElementById('protect-tiny-w').addEventListener('input', function() {
+    S.protectTinyW = parseInt(this.value) || 1;
+  });
+  document.getElementById('protect-tiny-h').addEventListener('input', function() {
+    S.protectTinyH = parseInt(this.value) || 1;
+  });
+  document.getElementById('autoconv-a8r8g8b8-chk').addEventListener('change', function() {
+    S.autoConvA8R8G8B8 = this.checked;
+    document.getElementById('autoconv-a8r8g8b8-opts').style.display = this.checked ? 'block' : 'none';
+  });
 }
 
 function selFmt(k) {
@@ -1631,15 +1654,12 @@ let _previewEntry = null;
 function showPreview(entry) {
   if (!entry.rgba) return;
   _previewEntry = entry;
-  const cvs = document.getElementById('cvs');
-  const MAX = 120, sc = Math.min(1, MAX / Math.max(entry.width, entry.height));
-  cvs.width = Math.round(entry.width * sc); cvs.height = Math.round(entry.height * sc);
-  const ctx = cvs.getContext('2d');
   const tmp = document.createElement('canvas');
   tmp.width = entry.width; tmp.height = entry.height;
-  tmp.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(entry.rgba), entry.width, entry.height), 0, 0);
-  ctx.drawImage(tmp, 0, 0, cvs.width, cvs.height);
-  document.getElementById('preview-thumb').src = cvs.toDataURL();
+  tmp.getContext('2d').putImageData(
+    new ImageData(new Uint8ClampedArray(entry.rgba), entry.width, entry.height), 0, 0
+  );
+  document.getElementById('preview-thumb').src = tmp.toDataURL();
   document.getElementById('preview-thumb').style.display = 'block';
   document.getElementById('preview-placeholder').style.display = 'none';
   document.getElementById('pi-name').textContent = entry.name;
@@ -1728,19 +1748,43 @@ async function doExportAll() {
     try {
       let rgba = new Uint8ClampedArray(entry.rgba), w = entry.width, h = entry.height;
 
+      const isTiny = S.protectTiny && (w <= S.protectTinyW || h <= S.protectTinyH);
       let tw = 0, th = 0;
-      if (!S.keepOrigSize) {
+
+      if (!S.keepOrigSize && !isTiny) {
         tw = parseInt(document.getElementById('inp-w').value) || S.outW || 0;
         th = parseInt(document.getElementById('inp-h').value) || S.outH || 0;
       }
+
+      if (tw > 0 && th > 0) {
+        if (S.skipSmaller && (w < tw || h < th)) {
+          if (S.skipScale === 'keep') {
+            tw = 0; th = 0;
+          } else if (S.skipScale === 'half') {
+            tw = Math.max(1, Math.floor(w / 2));
+            th = Math.max(1, Math.floor(h / 2));
+          } else if (S.skipScale === 'quarter') {
+            tw = Math.max(1, Math.floor(w / 4));
+            th = Math.max(1, Math.floor(h / 4));
+          }
+        }
+      }
+
       if (tw > 0 && th > 0 && (tw !== w || th !== h)) {
         rgba = resizeNearest(rgba, w, h, tw, th);
         w = tw; h = th;
       }
 
-      const fmt = S.keepOrigFmt
-        ? (entry.origFmt && FORMATS[entry.origFmt] ? entry.origFmt : S.targetFmt)
-        : S.targetFmt;
+      let fmt;
+      if (isTiny || S.keepOrigFmt) {
+        fmt = entry.origFmt && FORMATS[entry.origFmt] ? entry.origFmt : S.targetFmt;
+      } else {
+        fmt = S.targetFmt;
+      }
+
+      if (!isTiny && S.autoConvA8R8G8B8 && entry.origFmt === 'A8R8G8B8') {
+        fmt = S.a8r8Target;
+      }
 
       const mipCount = S.mipLevels === 'keep' ? entry.origMipCount : S.mipLevels;
 
