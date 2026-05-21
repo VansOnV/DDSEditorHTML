@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>DDS Editor v1.5— By Vans</title>
+<title>DDS Editor v1.4 — By Vans</title>
 <style>
 :root {
   --bg:       #07080e;
@@ -777,9 +777,13 @@ canvas{display:none;}
     </div>
     <div id="out-path-wrap">
       <div id="out-path-display">— same as source —</div>
-      <button class="icon-btn" onclick="pickOutputFolder()" title="Browse">📁 Browse</button>
+      <button class="icon-btn" id="browse-folder-btn" onclick="pickOutputFolder()" title="Browse">📁 Browse</button>
     </div>
     <input type="file" id="outfolderinput" webkitdirectory style="display:none" onchange="onOutFolder(this)"/>
+    <div class="check-row" style="margin-top:6px;">
+      <input type="checkbox" id="zip-output-chk" onchange="S.zipMode=this.checked"/>
+      <label class="check-label" for="zip-output-chk">Bundle all into a ZIP instead</label>
+    </div>
 
     <!-- OPTIONS -->
     <div class="slabel">Options</div>
@@ -1238,6 +1242,8 @@ const S = {
   protectTinyH: 64,
   autoConvA8R8G8B8: false,
   a8r8Target: 'DXT5',
+  isMobile: false,
+  zipMode: false,
 };
 let nextId = 1;
 
@@ -1384,6 +1390,15 @@ function initUI() {
     S.autoConvA8R8G8B8 = this.checked;
     document.getElementById('autoconv-a8r8g8b8-opts').style.display = this.checked ? 'block' : 'none';
   });
+
+  // On mobile/Android, auto-enable ZIP mode since folder picker won't work
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || !window.showDirectoryPicker;
+  S.isMobile = isMobile;
+  if (isMobile) {
+    S.zipMode = true;
+    const zc = document.getElementById('zip-output-chk');
+    if (zc) zc.checked = true;
+  }
 }
 
 function selFmt(k) {
@@ -1613,12 +1628,12 @@ function addRow(entry) {
 function updateRow(entry) {
   const inf = document.getElementById('cell-info-' + entry.id);
   const sta = document.getElementById('cell-status-' + entry.id);
-  if (inf) inf.textContent = entry.width ? `${entry.width}×${entry.height} ${entry.fmt}` : '—';
+  if (inf) inf.textContent = entry.status === 'error' ? (entry.statusMsg || 'error') : (entry.width ? `${entry.width}×${entry.height} ${entry.fmt}` : '—');
   if (sta) {
     sta.className = 'status-badge';
     if (entry.status === 'ready')      { sta.classList.add('badge-wait'); sta.textContent = 'READY'; }
     else if (entry.status === 'done')  { sta.classList.add('badge-ok');   sta.textContent = 'DONE'; }
-    else if (entry.status === 'error') { sta.classList.add('badge-err');  sta.textContent = 'ERROR'; }
+    else if (entry.status === 'error') { sta.classList.add('badge-err');  sta.textContent = 'ERROR'; sta.title = entry.statusMsg || ''; }
     else if (entry.status === 'processing') { sta.classList.add('badge-proc'); sta.textContent = '...'; }
   }
 }
@@ -1734,6 +1749,7 @@ async function doExportAll() {
   }
 
   document.getElementById('export-btn').disabled = true;
+  _zipQueue.length = 0;
   const pw = document.getElementById('progress-wrap');
   const pf = document.getElementById('progress-fill');
   const pt = document.getElementById('progress-text');
@@ -1776,17 +1792,26 @@ async function doExportAll() {
       }
 
       let fmt;
-      if (isTiny || S.keepOrigFmt) {
-        fmt = entry.origFmt && FORMATS[entry.origFmt] ? entry.origFmt : S.targetFmt;
+      if (S.keepOrigFmt) {
+        const orig = entry.origFmt;
+        fmt = (orig && FORMATS[orig] && orig !== 'PNG' && orig !== 'JPEG') ? orig : S.targetFmt;
       } else {
         fmt = S.targetFmt;
       }
 
-      if (!isTiny && S.autoConvA8R8G8B8 && entry.origFmt === 'A8R8G8B8') {
+      // A8R8G8B8 auto-convert: always applies regardless of keepOrigFmt or isTiny
+      if (S.autoConvA8R8G8B8 && entry.origFmt === 'A8R8G8B8') {
         fmt = S.a8r8Target;
       }
 
-      const mipCount = S.mipLevels === 'keep' ? entry.origMipCount : S.mipLevels;
+      // isTiny textures keep their original format (but A8R8G8B8 auto-convert already ran above)
+      if (isTiny && !S.autoConvA8R8G8B8) {
+        const orig = entry.origFmt;
+        fmt = (orig && FORMATS[orig] && orig !== 'PNG' && orig !== 'JPEG') ? orig : S.targetFmt;
+      }
+
+      // BC7 can't be re-encoded — write as DXT5
+      if (fmt === 'BC7') fmt = 'DXT5';
 
       let buf, outName;
       const base = entry.name.replace(/\.[^.]+$/, '');
@@ -1798,8 +1823,8 @@ async function doExportAll() {
         buf = await rgbaToJPEG(rgba, w, h);
         outName = keepName ? `${base}.jpg` : `${base}_export.jpg`;
       } else {
-        const enc = encodeRGBA(rgba, w, h, fmt);
-        buf = writeDDS(w, h, fmt, enc, mipCount);
+        const enc = encodeWithMips(rgba, w, h, fmt, S.mipLevels);
+        buf = writeDDS(w, h, fmt, enc.data, enc.mips);
         outName = keepName ? `${base}.dds` : `${base}_${fmt}.dds`;
       }
 
@@ -1818,6 +1843,13 @@ async function doExportAll() {
   document.getElementById('export-btn').disabled = false;
   setStatus(`Done! ${done} file(s) exported`, 'ok');
 
+  if (S.zipMode && _zipQueue.length) {
+    const zip = buildZip(_zipQueue);
+    _zipQueue.length = 0;
+    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+    downloadBlob(new Blob([zip], { type: 'application/zip' }), `dds_export_${ts}.zip`);
+  }
+
   const allDone = S.files.every(f => f.status === 'done');
   if (allDone) {
     await sleep(800);
@@ -1827,22 +1859,117 @@ async function doExportAll() {
 }
 
 // ── UNIFIED SAVE FILE (all platforms) ──
+const _zipQueue = [];
+
 async function saveFile(buf, name) {
-  // Try File System Access API first (desktop/modern browsers)
+  if (S.zipMode) {
+    _zipQueue.push({ name, data: new Uint8Array(buf instanceof ArrayBuffer ? buf : buf.buffer || buf) });
+    return;
+  }
+
+  const data = buf instanceof ArrayBuffer ? buf : buf.buffer || buf;
+
   if (!S.sameDir && S.outDir) {
     try {
       const fh = await S.outDir.getFileHandle(name, { create: true });
       const writable = await fh.createWritable();
-      await writable.write(buf instanceof ArrayBuffer ? buf : buf.buffer || buf);
+      await writable.write(data);
+      await writable.truncate(data.byteLength || data.length);
       await writable.close();
       return;
-    } catch(e) { /* fall through */ }
+    } catch(e) { /* fall through to download */ }
   }
 
   const ext = name.split('.').pop().toLowerCase();
   const mime = ext === 'png' ? 'image/png' : (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : 'application/octet-stream';
-  const blob = new Blob([buf], { type: mime });
-  downloadBlob(blob, name);
+  downloadBlob(new Blob([data], { type: mime }), name);
+}
+
+function buildZip(files) {
+  // Minimal ZIP builder — no compression (store only), works everywhere
+  const encoder = new TextEncoder();
+  const localHeaders = [];
+  let dataOffset = 0;
+  const parts = [];
+
+  for (const { name, data } of files) {
+    const nameBytes = encoder.encode(name);
+    const crc = crc32(data);
+    const local = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(local.buffer);
+    lv.setUint32(0,  0x04034b50, true); // local file header sig
+    lv.setUint16(4,  20, true);          // version needed
+    lv.setUint16(6,  0,  true);          // flags
+    lv.setUint16(8,  0,  true);          // compression: store
+    lv.setUint16(10, 0,  true);          // mod time
+    lv.setUint16(12, 0,  true);          // mod date
+    lv.setUint32(14, crc, true);         // CRC-32
+    lv.setUint32(18, data.length, true); // compressed size
+    lv.setUint32(22, data.length, true); // uncompressed size
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    local.set(nameBytes, 30);
+    localHeaders.push({ nameBytes, crc, size: data.length, offset: dataOffset });
+    dataOffset += local.length + data.length;
+    parts.push(local, data);
+  }
+
+  // Central directory
+  const cdParts = [];
+  let cdSize = 0;
+  for (let i = 0; i < files.length; i++) {
+    const { nameBytes, crc, size, offset } = localHeaders[i];
+    const cd = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(cd.buffer);
+    cv.setUint32(0,  0x02014b50, true); // central dir sig
+    cv.setUint16(4,  20, true);
+    cv.setUint16(6,  20, true);
+    cv.setUint16(8,  0,  true);
+    cv.setUint16(10, 0,  true);
+    cv.setUint16(12, 0,  true);
+    cv.setUint16(14, 0,  true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    cd.set(nameBytes, 46);
+    cdParts.push(cd);
+    cdSize += cd.length;
+  }
+
+  // End of central directory
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0,  0x06054b50, true);
+  ev.setUint16(4,  0, true);
+  ev.setUint16(6,  0, true);
+  ev.setUint16(8,  files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, cdSize, true);
+  ev.setUint32(16, dataOffset, true);
+  ev.setUint16(20, 0, true);
+
+  const all = [...parts, ...cdParts, eocd];
+  const total = all.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of all) { out.set(a, off); off += a.length; }
+  return out;
+}
+
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
 }
 
 function downloadBlob(blob, name) {
@@ -1853,6 +1980,21 @@ function downloadBlob(blob, name) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// Sequential download queue to avoid browser popup blocker on rapid batch downloads
+const _dlQueue = [];
+let _dlRunning = false;
+async function queueDownload(blob, name) {
+  _dlQueue.push({ blob, name });
+  if (_dlRunning) return;
+  _dlRunning = true;
+  while (_dlQueue.length) {
+    const { blob, name } = _dlQueue.shift();
+    downloadBlob(blob, name);
+    await sleep(300); // give browser time between downloads
+  }
+  _dlRunning = false;
 }
 
 // PNG export via canvas
@@ -1917,41 +2059,68 @@ function parseDDS(buffer) {
   const width    = v.getUint32(16, true);
   const mipCount = v.getUint32(28, true) || 1;
   const pfFlags  = v.getUint32(80, true);
-  let format = 'UNKNOWN', fourCC = '';
+  let format = 'DXT5', fourCC = '';
+  let isDX10 = false;
 
   if (pfFlags & 0x4) {
     fourCC = String.fromCharCode(v.getUint8(84),v.getUint8(85),v.getUint8(86),v.getUint8(87));
-    if (fourCC === 'DXT1') format = 'DXT1';
+    if      (fourCC === 'DXT1') format = 'DXT1';
     else if (fourCC === 'DXT3') format = 'DXT3';
     else if (fourCC === 'DXT5') format = 'DXT5';
     else if (fourCC === 'DX10') {
-      // Read DXGI format from DX10 header (offset 128)
-      const dxgiFormat = v.getUint32(128, true);
-      if (dxgiFormat === 98) format = 'BC7';
-      else if (dxgiFormat === 80) format = 'ATI1';  // BC4_UNORM
-      else if (dxgiFormat === 83) format = 'ATI2';  // BC5_UNORM
-      else format = 'BC7'; // fallback
+      isDX10 = true;
+      const dxgiFmt = v.getUint32(128, true);
+      if      (dxgiFmt === 98) format = 'BC7';
+      else if (dxgiFmt === 80 || dxgiFmt === 81) format = 'ATI1';
+      else if (dxgiFmt === 83 || dxgiFmt === 84) format = 'ATI2';
+      else if (dxgiFmt === 87 || dxgiFmt === 28) format = 'A8R8G8B8';
+      else if (dxgiFmt === 71 || dxgiFmt === 72 || dxgiFmt === 74) format = 'DXT1';
+      else if (dxgiFmt === 77 || dxgiFmt === 78 || dxgiFmt === 80) format = 'DXT3';
+      else if (dxgiFmt === 67 || dxgiFmt === 68 || dxgiFmt === 70 ||
+               dxgiFmt === 75 || dxgiFmt === 76) format = 'DXT5';
+      else format = 'DXT5';
     }
     else if (fourCC === 'ATI1' || fourCC === 'BC4U' || fourCC === 'BC4S') format = 'ATI1';
-    else if (fourCC === 'ATI2' || fourCC === 'BC5U' || fourCC === 'BC5S') format = 'ATI2';
-    else format = fourCC;
-  } else if (pfFlags & 0x40) {
+    else if (fourCC === 'ATI2' || fourCC === 'BC5U' || fourCC === 'BC5S' || fourCC === '3Dc\0' || fourCC === 'A2XY') format = 'ATI2';
+    else {
+      // Unknown fourCC — attempt to fall through to uncompressed detection
+      fourCC = '';
+    }
+  }
+
+  if (!fourCC || fourCC === '') {
+    // Uncompressed: check masks
     const bpp = v.getUint32(88, true);
     const rm  = v.getUint32(92, true);
     const gm  = v.getUint32(96, true);
     const bm  = v.getUint32(100, true);
     const am  = v.getUint32(104, true);
-    if (bpp === 32 && am !== 0) format = 'A8R8G8B8';
-    else if (bpp === 16 && am !== 0) format = 'A1R5G5B5';
-    else format = 'RGB';
-  } else if (pfFlags & 0x20000) {
-    format = 'L8';
-  } else if (pfFlags & 0x2) {
-    format = 'A8';
+
+    if (pfFlags & 0x20000) {
+      format = 'L8';
+    } else if (pfFlags & 0x2) {
+      format = 'A8';
+    } else if ((pfFlags & 0x40) || (pfFlags & 0x41)) {
+      if (bpp === 32) {
+        if (am !== 0 || (pfFlags & 0x1)) format = 'A8R8G8B8';
+        else format = 'A8R8G8B8'; // X8R8G8B8 — treat as A8R8G8B8 with full alpha
+      } else if (bpp === 16) {
+        format = 'A1R5G5B5';
+      } else {
+        format = 'A8R8G8B8';
+      }
+    } else {
+      // Fallback: guess from bpp
+      if (bpp === 8) format = 'L8';
+      else format = 'A8R8G8B8';
+    }
   }
 
-  const dataOffset = 128 + (fourCC === 'DX10' ? 20 : 0);
-  return { width, height, mipCount, format, pixelData: new Uint8Array(buffer, dataOffset) };
+  const dataOffset = Math.min(128 + (isDX10 ? 20 : 0), buffer.byteLength);
+  const pixelData = dataOffset < buffer.byteLength
+    ? new Uint8Array(buffer, dataOffset)
+    : new Uint8Array(0);
+  return { width, height, mipCount, format, pixelData };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1965,57 +2134,66 @@ function writeDDS(width, height, format, pixelData, mips = 1) {
   const v = new DataView(out);
   const u = new Uint8Array(out);
 
-  let flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x80000;
-  if (mips > 1) flags |= 0x20000;
+  // Base flags: CAPS | HEIGHT | WIDTH | PIXELFORMAT
+  let flags = 0x1 | 0x2 | 0x4 | 0x1000;
+  if (fmt.block) {
+    flags |= 0x80000; // DDSD_LINEARSIZE for compressed
+  } else {
+    flags |= 0x8; // DDSD_PITCH for uncompressed
+  }
+  if (mips > 1) flags |= 0x20000; // DDSD_MIPMAPCOUNT
 
-  v.setUint32(0, 0x20534444, true);
-  v.setUint32(4, 124, true);
+  v.setUint32(0, 0x20534444, true); // 'DDS '
+  v.setUint32(4, 124, true);        // header size
   v.setUint32(8, flags, true);
   v.setUint32(12, height, true);
   v.setUint32(16, width, true);
 
+  // pitchOrLinearSize
   if (fmt.block) {
-    v.setUint32(20, Math.ceil(width/4) * Math.ceil(height/4) * fmt.bs, true);
+    v.setUint32(20, Math.max(1, Math.ceil(width/4)) * Math.max(1, Math.ceil(height/4)) * fmt.bs, true);
   } else {
-    v.setUint32(20, width * (fmt.bpp / 8), true);
+    v.setUint32(20, Math.max(1, Math.ceil(width * fmt.bpp / 8)), true);
   }
 
-  v.setUint32(28, mips, true);
-  v.setUint32(76, 32, true); // pixel format size
+  v.setUint32(24, 0, true);    // depth
+  v.setUint32(28, Math.max(1, mips), true); // mipMapCount
+  // reserved1[11] at offsets 32–75 — all zero
+  v.setUint32(76, 32, true);   // pixel format struct size
 
   if (isDX10) {
-    // Use DX10 extended header for BC7/ATI1/ATI2
-    v.setUint32(80, 0x4, true);
-    for (let i = 0; i < 4; i++) v.setUint8(84 + i, 'DX10'.charCodeAt(i));
-    // DX10 header at offset 128
-    let dxgiFmt = 98; // DXGI_FORMAT_BC7_UNORM default
-    if (format === 'ATI1') dxgiFmt = 80; // DXGI_FORMAT_BC4_UNORM
-    if (format === 'ATI2') dxgiFmt = 83; // DXGI_FORMAT_BC5_UNORM
-    v.setUint32(128, dxgiFmt, true);
-    v.setUint32(132, 3, true); // D3D10_RESOURCE_DIMENSION_TEXTURE2D
-    v.setUint32(136, 0, true);
-    v.setUint32(140, 1, true);
-    v.setUint32(144, 0, true);
+    v.setUint32(80, 0x4, true); // DDPF_FOURCC
+    v.setUint8(84, 0x44); v.setUint8(85, 0x58); v.setUint8(86, 0x31); v.setUint8(87, 0x30); // 'DX10'
+    let dxgiFmt = 98;
+    if (format === 'ATI1') dxgiFmt = 80;
+    if (format === 'ATI2') dxgiFmt = 83;
+    v.setUint32(128, dxgiFmt, true); // DXGI format
+    v.setUint32(132, 3, true);       // D3D10_RESOURCE_DIMENSION_TEXTURE2D
+    v.setUint32(136, 0, true);       // miscFlag
+    v.setUint32(140, 1, true);       // arraySize
+    v.setUint32(144, 0, true);       // miscFlags2
   } else if (fmt.cc) {
-    v.setUint32(80, 0x4, true);
+    v.setUint32(80, 0x4, true); // DDPF_FOURCC
     for (let i = 0; i < 4; i++) v.setUint8(84 + i, fmt.cc.charCodeAt(i));
+    // RGBBitCount, masks all zero for FourCC formats
   } else {
-    let pf = 0x40;
-    if (fmt.alpha) pf |= 0x1;
-    if (format === 'L8') pf = 0x20000;
-    if (format === 'A8') pf = 0x2;
-    v.setUint32(80, pf, true);
-    v.setUint32(88, fmt.bpp, true);
+    // Uncompressed
+    let pfFlags = 0x40; // DDPF_RGB
+    if (fmt.alpha) pfFlags |= 0x1; // DDPF_ALPHAPIXELS
+    if (format === 'L8') pfFlags = 0x20000; // DDPF_LUMINANCE
+    if (format === 'A8') pfFlags = 0x2;     // DDPF_ALPHA
+    v.setUint32(80, pfFlags, true);
+    v.setUint32(88, fmt.bpp, true); // RGBBitCount
     if (format === 'A8R8G8B8') {
-      v.setUint32(92,  0x00FF0000, true);
-      v.setUint32(96,  0x0000FF00, true);
-      v.setUint32(100, 0x000000FF, true);
-      v.setUint32(104, 0xFF000000, true);
+      v.setUint32(92,  0x00FF0000, true); // R mask
+      v.setUint32(96,  0x0000FF00, true); // G mask
+      v.setUint32(100, 0x000000FF, true); // B mask
+      v.setUint32(104, 0xFF000000, true); // A mask
     } else if (format === 'A1R5G5B5') {
-      v.setUint32(92,  0x7C00, true);
-      v.setUint32(96,  0x03E0, true);
-      v.setUint32(100, 0x001F, true);
-      v.setUint32(104, 0x8000, true);
+      v.setUint32(92,  0x00007C00, true);
+      v.setUint32(96,  0x000003E0, true);
+      v.setUint32(100, 0x0000001F, true);
+      v.setUint32(104, 0x00008000, true);
     } else if (format === 'L8') {
       v.setUint32(92, 0xFF, true);
     } else if (format === 'A8') {
@@ -2023,9 +2201,11 @@ function writeDDS(width, height, format, pixelData, mips = 1) {
     }
   }
 
-  let caps = 0x1000;
-  if (mips > 1) caps |= 0x400008;
+  // caps
+  let caps = 0x1000; // DDSCAPS_TEXTURE
+  if (mips > 1) caps |= 0x400008; // DDSCAPS_MIPMAP | DDSCAPS_COMPLEX
   v.setUint32(108, caps, true);
+  // caps2, caps3, caps4, reserved2 all zero
 
   u.set(pixelData, headerSize);
   return out;
@@ -2082,6 +2262,11 @@ function decodeATI2Block(px, o) {
 }
 
 function decompressToRGBA(px, w, h, fmt) {
+  if (!px || px.length === 0 || !w || !h) {
+    const rgba = new Uint8ClampedArray(Math.max(w,1) * Math.max(h,1) * 4);
+    for (let i = 0; i < rgba.length; i += 4) { rgba[i]=255; rgba[i+2]=255; rgba[i+3]=255; }
+    return rgba;
+  }
   const rgba = new Uint8ClampedArray(w * h * 4);
   for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
 
@@ -2237,6 +2422,10 @@ function decompressToRGBA(px, w, h, fmt) {
     return rgba;
   }
 
+  // Unknown / unsupported format — return magenta to signal the issue visually
+  for (let i = 0; i < w*h; i++) {
+    rgba[i*4]=255; rgba[i*4+1]=0; rgba[i*4+2]=255; rgba[i*4+3]=255;
+  }
   return rgba;
 }
 
@@ -2362,7 +2551,53 @@ class BC7BitReader {
 // ═══════════════════════════════════════════════════════
 //  ENCODE RGBA → FORMAT — FIXED
 // ═══════════════════════════════════════════════════════
+function downsampleRGBA(rgba, w, h) {
+  const nw = Math.max(1, w >> 1), nh = Math.max(1, h >> 1);
+  const out = new Uint8ClampedArray(nw * nh * 4);
+  for (let y = 0; y < nh; y++) {
+    for (let x = 0; x < nw; x++) {
+      const sx = x * 2, sy = y * 2;
+      const i00 = (Math.min(sy,   h-1) * w + Math.min(sx,   w-1)) * 4;
+      const i10 = (Math.min(sy,   h-1) * w + Math.min(sx+1, w-1)) * 4;
+      const i01 = (Math.min(sy+1, h-1) * w + Math.min(sx,   w-1)) * 4;
+      const i11 = (Math.min(sy+1, h-1) * w + Math.min(sx+1, w-1)) * 4;
+      const o = (y * nw + x) * 4;
+      out[o]   = (rgba[i00]   + rgba[i10]   + rgba[i01]   + rgba[i11])   >> 2;
+      out[o+1] = (rgba[i00+1] + rgba[i10+1] + rgba[i01+1] + rgba[i11+1]) >> 2;
+      out[o+2] = (rgba[i00+2] + rgba[i10+2] + rgba[i01+2] + rgba[i11+2]) >> 2;
+      out[o+3] = (rgba[i00+3] + rgba[i10+3] + rgba[i01+3] + rgba[i11+3]) >> 2;
+    }
+  }
+  return { rgba: out, w: nw, h: nh };
+}
+
+function encodeWithMips(rgba, w, h, fmt, requestedMips) {
+  const maxMips = Math.floor(Math.log2(Math.max(w, h))) + 1;
+  // 'keep' or any non-positive number → full mip chain
+  const mipCount = (requestedMips === 'keep' || !(requestedMips >= 1))
+    ? maxMips
+    : Math.min(Number(requestedMips), maxMips);
+
+  const chunks = [];
+  let cw = w, ch = h, cur = rgba;
+  for (let m = 0; m < mipCount; m++) {
+    chunks.push(encodeRGBA(cur, cw, ch, fmt));
+    if (cw === 1 && ch === 1) break;
+    const down = downsampleRGBA(cur, cw, ch);
+    cur = down.rgba; cw = down.w; ch = down.h;
+  }
+
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const data = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { data.set(c, off); off += c.length; }
+  return { data, mips: chunks.length };
+}
+
 function encodeRGBA(rgba, w, h, fmt) {
+  // BC7 encode is not supported — silently downgrade to DXT5
+  if (fmt === 'BC7') fmt = 'DXT5';
+
   if (fmt === 'A8R8G8B8') {
     const o = new Uint8Array(w*h*4);
     for (let i=0;i<w*h;i++) {
@@ -2432,7 +2667,7 @@ function encodeRGBA(rgba, w, h, fmt) {
         const hi = Math.round((blk[i*2+1]||[0,0,0,0])[3]/17)&0xF;
         out[oo++] = lo | (hi<<4);
       }
-    } else if (fmt === 'DXT5' || fmt === 'BC7') {
+    } else if (fmt === 'DXT5') {
       const a0 = blk.reduce((m,p)=>Math.max(m,p[3]),0);
       const a1 = blk.reduce((m,p)=>Math.min(m,p[3]),255);
       out[oo++]=a0; out[oo++]=a1;
@@ -2451,20 +2686,27 @@ function encodeRGBA(rgba, w, h, fmt) {
       out[oo++]=hi&0xFF; out[oo++]=(hi>>8)&0xFF; out[oo++]=(hi>>16)&0xFF;
     }
 
-    // Color block (shared by DXT1/3/5/BC7)
+    // Color block (shared by DXT1/3/5)
     let minR=255,minG=255,minB=255,maxR=0,maxG=0,maxB=0;
     for (const [r,g,b] of blk) {
       minR=Math.min(minR,r); minG=Math.min(minG,g); minB=Math.min(minB,b);
       maxR=Math.max(maxR,r); maxG=Math.max(maxG,g); maxB=Math.max(maxB,b);
     }
-    const c0 = ((maxR>>3)<<11)|((maxG>>2)<<5)|(maxB>>3);
-    const c1 = ((minR>>3)<<11)|((minG>>2)<<5)|(minB>>3);
-    const useC0 = fmt==='DXT1' ? c0 : Math.max(c0,c1);
-    const useC1 = fmt==='DXT1' ? c1 : Math.min(c0,c1);
-    out[oo++]=useC0&0xFF; out[oo++]=(useC0>>8)&0xFF;
-    out[oo++]=useC1&0xFF; out[oo++]=(useC1>>8)&0xFF;
-    const cr0r=((useC0>>11)&31)*255/31|0, cr0g=((useC0>>5)&63)*255/63|0, cr0b=(useC0&31)*255/31|0;
-    const cr1r=((useC1>>11)&31)*255/31|0, cr1g=((useC1>>5)&63)*255/63|0, cr1b=(useC1&31)*255/31|0;
+    let c0 = ((maxR>>3)<<11)|((maxG>>2)<<5)|(maxB>>3);
+    let c1 = ((minR>>3)<<11)|((minG>>2)<<5)|(minB>>3);
+
+    // For DXT5/DXT3: c0 MUST be > c1 so decoders use the 4-color path, not 1-bit alpha
+    if (fmt !== 'DXT1') {
+      if (c0 <= c1) {
+        // swap so c0 > c1; if equal, bump c0
+        const tmp = c0; c0 = c1; c1 = tmp;
+        if (c0 === c1) { c0 = Math.min(c0 + 1, 0xFFFF); }
+      }
+    }
+    out[oo++]=c0&0xFF; out[oo++]=(c0>>8)&0xFF;
+    out[oo++]=c1&0xFF; out[oo++]=(c1>>8)&0xFF;
+    const cr0r=((c0>>11)&31)*255/31|0, cr0g=((c0>>5)&63)*255/63|0, cr0b=(c0&31)*255/31|0;
+    const cr1r=((c1>>11)&31)*255/31|0, cr1g=((c1>>5)&63)*255/63|0, cr1b=(c1&31)*255/31|0;
     const EC = [
       [cr0r,cr0g,cr0b],[cr1r,cr1g,cr1b],
       [(2*cr0r+cr1r)/3|0,(2*cr0g+cr1g)/3|0,(2*cr0b+cr1b)/3|0],
