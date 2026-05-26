@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>DDS Editor v1.4 — By Vans</title>
+<title>DDS Editor v1.7 — By Vans</title>
 <style>
 :root {
   --bg:       #07080e;
@@ -636,14 +636,82 @@ canvas{display:none;}
 #usc-status-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background 0.3s;}
 #usc-status-msg{font-size:9px;color:var(--text2);letter-spacing:0.08em;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-/* Mobile */
-@media(max-width:700px){
-  #usc-layout{flex-direction:column;}
-  #usc-sidebar{width:100%;max-height:360px;border-right:none;border-bottom:1px solid var(--border);}
+/* ── TOAST NOTIFICATIONS ── */
+#toast-container {
+  position: fixed;
+  bottom: 48px;
+  right: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
 }
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 10px;
+  color: var(--text);
+  letter-spacing: 0.06em;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,245,255,0.05);
+  pointer-events: auto;
+  min-width: 200px;
+  max-width: 320px;
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.2,0,0.2,1), opacity 0.28s ease;
+}
+.toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+.toast.hide {
+  transform: translateX(120%);
+  opacity: 0;
+}
+.toast-icon { font-size: 14px; flex-shrink: 0; }
+.toast-msg  { flex: 1; line-height: 1.4; }
+.toast-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text2); font-size: 12px; padding: 0 2px;
+  flex-shrink: 0; line-height: 1;
+  transition: color 0.1s;
+}
+.toast-close:hover { color: var(--text); }
+.toast-bar {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 2px;
+  border-radius: 0 0 8px 8px;
+  background: var(--cyan);
+  width: 100%;
+  transform-origin: left;
+  animation: toast-shrink linear forwards;
+}
+@keyframes toast-shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.toast { position: relative; overflow: hidden; }
+.toast.t-ok     { border-color: rgba(0,255,136,0.35); }
+.toast.t-ok     .toast-bar { background: var(--green); }
+.toast.t-ok     .toast-icon::before { content: '✓'; color: var(--green); }
+.toast.t-error  { border-color: rgba(255,45,120,0.35); }
+.toast.t-error  .toast-bar { background: var(--pink); }
+.toast.t-error  .toast-icon::before { content: '✕'; color: var(--pink); }
+.toast.t-info   { border-color: rgba(0,245,255,0.25); }
+.toast.t-info   .toast-bar { background: var(--cyan); }
+.toast.t-info   .toast-icon::before { content: '⚙'; color: var(--cyan); }
+.toast.t-warn   { border-color: rgba(255,106,0,0.35); }
+.toast.t-warn   .toast-bar { background: var(--orange); }
+.toast.t-warn   .toast-icon::before { content: '!'; color: var(--orange); font-weight:bold; }
 </style>
 </head>
 <body>
+<div id="toast-container"></div>
 
 <!-- HEADER -->
 <div id="ascii-header">
@@ -673,7 +741,7 @@ canvas{display:none;}
 ▐█▄▄▄▄▄▌  ▐█▌        ▐█▌        ▐█▄▄▄▄▄▄▄▄▌ ▐█▄▄▄▄▄▄▌ ▐█▌</div>
 
   </div>
-  <div id="ascii-sub">⚡ BY VANS ⚡ v1.5</div>
+  <div id="ascii-sub">⚡ BY VANS ⚡ v1.7</div>
 </div>
 
 <!-- TAB BAR -->
@@ -681,6 +749,7 @@ canvas{display:none;}
   <button class="tab-btn active" id="tab-dds" onclick="switchTab('dds')">⬡ DDS Editor</button>
   <button class="tab-btn" id="tab-photo" onclick="switchTab('photo')">🎨 Photo Editor</button>
   <button class="tab-btn" id="tab-upscaler" onclick="switchTab('upscaler')">✦ Upscaler</button>
+  <button class="tab-btn" id="tab-config" onclick="switchTab('config')">⚙ Config</button>
 </div>
 
 <!-- DDS EDITOR TAB -->
@@ -699,9 +768,9 @@ canvas{display:none;}
       ondrop="onDrop(event)">
       <div class="dz-icon">⬡</div>
       <div class="dz-main">ADD FILES / FOLDER</div>
-      <div class="dz-sub">DDS · PNG · JPG · drag &amp; drop</div>
+      <div class="dz-sub">DDS · PNG · JPG · TGA · BMP · SVG · drag &amp; drop</div>
     </div>
-    <input type="file" id="fileinput" accept=".dds,.png,.jpg,.jpeg" multiple style="display:none" onchange="onFileInput(this)"/>
+    <input type="file" id="fileinput" accept=".dds,.png,.jpg,.jpeg,.tga,.bmp,.svg" multiple style="display:none" onchange="onFileInput(this)"/>
     <input type="file" id="folderinput" webkitdirectory multiple style="display:none" onchange="onFolderInput(this)"/>
 
     <button class="btn btn-orange" onclick="document.getElementById('folderinput').click()" style="margin-bottom:10px">
@@ -711,6 +780,19 @@ canvas{display:none;}
     <!-- OUTPUT FORMAT -->
     <div class="slabel slabel-rgb">Output Format</div>
     <div id="fmt-grid"></div>
+    <!-- A8R8G8B8 auto-convert sits here, visible alongside format selection -->
+    <div class="check-row" style="margin-top:2px;">
+      <input type="checkbox" id="autoconv-a8r8g8b8-chk"/>
+      <label class="check-label" for="autoconv-a8r8g8b8-chk">Auto-convert A8R8G8B8 → compressed</label>
+    </div>
+    <div id="autoconv-a8r8g8b8-opts" style="margin-left:22px;margin-bottom:6px;display:none;">
+      <div class="field-label" style="margin-bottom:4px;">Convert A8R8G8B8 to:</div>
+      <div style="display:flex;gap:4px;">
+        <button class="size-btn active" id="a8r8-target-dxt5" onclick="selA8R8Target('DXT5')" style="flex:1;padding:5px 4px;font-size:9px;">DXT5</button>
+        <button class="size-btn" id="a8r8-target-dxt1" onclick="selA8R8Target('DXT1')" style="flex:1;padding:5px 4px;font-size:9px;">DXT1</button>
+      </div>
+      <div style="font-size:8px;color:var(--text2);margin-top:4px;line-height:1.5;">DXT5 keeps alpha channel. DXT1 = no alpha, smaller file.</div>
+    </div>
 
     <!-- SIZE PRESETS -->
     <div class="slabel slabel-rgb slabel-rgb--delay1">Size Presets</div>
@@ -752,38 +834,60 @@ canvas{display:none;}
     <div class="slabel slabel-rgb slabel-rgb--delay2" style="margin-top:8px;">Custom Size</div>
     <div class="check-row" style="margin-bottom:6px;">
       <input type="checkbox" id="link-wh-chk"/>
-      <label class="check-label" for="link-wh-chk">Constrain proportions (link W &amp; H)</label>
+      <label class="check-label" for="link-wh-chk">Link Width &amp; Height</label>
     </div>
     <div class="row">
       <div><div class="field-label">WIDTH</div><input type="number" id="inp-w" placeholder="512" min="1" max="8192" oninput="onWInput(this)"/></div>
       <div><div class="field-label">HEIGHT</div><input type="number" id="inp-h" placeholder="512" min="1" max="8192" oninput="onHInput(this)"/></div>
     </div>
 
+    <!-- POW2 SNAP / KEEP ASPECT RATIO -->
+    <div class="check-row" style="margin-top:6px;margin-bottom:2px;">
+      <input type="checkbox" id="pow2-snap-chk" onchange="togglePow2Snap(this)"/>
+      <label class="check-label" for="pow2-snap-chk">Keep Aspect Ratio <span style="color:var(--green);font-size:8px;">(Recommended for Batch Resizing)</span></label>
+    </div>
+    <div id="pow2-snap-opts" style="display:none;margin-left:22px;margin-bottom:6px;">
+      <div style="font-size:8px;color:var(--text2);line-height:1.6;margin-bottom:6px;">
+        Snaps non-pow2 sizes to nearest pow2, preserving aspect ratio.<br>
+        Uses the selected Size Preset as the target.<br>
+        <span style="color:var(--purple);">e.g. select 2048 → 512×256 becomes 2048×1024</span>
+      </div>
+      <div id="pow2-snap-btns" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;"></div>
+      <div style="font-size:8px;color:var(--text2);line-height:1.6;" id="pow2-snap-preview">—</div>
+    </div>
+
     <!-- MIPMAPS -->
     <div class="slabel slabel-rgb slabel-rgb--delay3">Mipmap Levels</div>
     <div id="mip-row"></div>
-    <div class="row" style="margin-bottom:8px">
+    <div class="row" style="margin-bottom:4px">
       <div>
         <div class="field-label">CUSTOM MIPS</div>
         <input type="number" id="mip-custom" placeholder="e.g. 12" min="1" max="20" oninput="onMipCustom(this)"/>
       </div>
     </div>
+    <div class="check-row" style="margin-bottom:4px;">
+      <input type="checkbox" id="auto-mipgen-chk"/>
+      <label class="check-label" for="auto-mipgen-chk">Auto Generate Mipmap Levels</label>
+    </div>
+    <div id="auto-mipgen-info" style="display:none;margin-left:22px;margin-bottom:6px;font-size:8px;color:var(--text2);line-height:1.6;">
+      Calculates mip levels from texture size.<br>
+      <span id="mipgen-example" style="color:var(--purple);">e.g. 512×512 = 9 levels</span>
+    </div>
 
     <!-- OUTPUT -->
     <div class="slabel slabel-rgb slabel-rgb--delay4">Output Location</div>
     <div class="check-row">
-      <input type="checkbox" id="same-dir-chk" checked onchange="toggleSameDir(this)"/>
+      <input type="checkbox" id="same-dir-chk" onchange="toggleSameDir(this)"/>
       <label class="check-label" for="same-dir-chk">Save to same folder as source</label>
     </div>
+    <div style="font-size:8px;color:var(--text2);margin:2px 0 4px 22px;line-height:1.5;">
+      By default, files are saved to your Downloads folder.
+    </div>
     <div id="out-path-wrap">
-      <div id="out-path-display">— same as source —</div>
-      <button class="icon-btn" id="browse-folder-btn" onclick="pickOutputFolder()" title="Browse">📁 Browse</button>
+      <div id="out-path-display">— Downloads (default) —</div>
+      <button class="icon-btn" onclick="pickOutputFolder()" title="Browse">📁 Browse</button>
     </div>
     <input type="file" id="outfolderinput" webkitdirectory style="display:none" onchange="onOutFolder(this)"/>
-    <div class="check-row" style="margin-top:6px;">
-      <input type="checkbox" id="zip-output-chk" onchange="S.zipMode=this.checked"/>
-      <label class="check-label" for="zip-output-chk">Bundle all into a ZIP instead</label>
-    </div>
 
     <!-- OPTIONS -->
     <div class="slabel">Options</div>
@@ -794,19 +898,6 @@ canvas{display:none;}
     <div class="check-row">
       <input type="checkbox" id="overwrite-chk" checked/>
       <label class="check-label" for="overwrite-chk">Overwrite on export</label>
-    </div>
-    <div class="slabel" style="margin-top:8px;">A8R8G8B8 Auto-Convert</div>
-    <div class="check-row">
-      <input type="checkbox" id="autoconv-a8r8g8b8-chk"/>
-      <label class="check-label" for="autoconv-a8r8g8b8-chk">Auto-convert A8R8G8B8 → compressed</label>
-    </div>
-    <div id="autoconv-a8r8g8b8-opts" style="margin-left:22px;margin-bottom:6px;display:none;">
-      <div class="field-label" style="margin-bottom:4px;">Convert A8R8G8B8 to:</div>
-      <div style="display:flex;gap:4px;">
-        <button class="size-btn active" id="a8r8-target-dxt5" onclick="selA8R8Target('DXT5')" style="flex:1;padding:5px 4px;font-size:9px;">DXT5</button>
-        <button class="size-btn" id="a8r8-target-dxt1" onclick="selA8R8Target('DXT1')" style="flex:1;padding:5px 4px;font-size:9px;">DXT1</button>
-      </div>
-      <div style="font-size:8px;color:var(--text2);margin-top:4px;line-height:1.5;">DXT5 keeps alpha channel. DXT1 = no alpha, smaller file.</div>
     </div>
 
   </div><!-- /sidebar-scroll -->
@@ -819,6 +910,7 @@ canvas{display:none;}
     </div>
     <button class="btn btn-green" id="export-btn" onclick="doExportAll()" disabled>⬇ Convert &amp; Export All</button>
     <button class="btn btn-pink" onclick="clearAll()">✕ Clear All</button>
+    <button class="btn btn-blue" onclick="saveConfig('dds')" style="margin-top:4px;opacity:0.85;">💾 Save Config</button>
   </div>
 </div><!-- /sidebar -->
 
@@ -985,6 +1077,7 @@ canvas{display:none;}
     <span id="pe-coords">x:— y:—</span>
     <span id="pe-canvas-size" style="font-size:9px;color:var(--text2);"></span>
     <span style="flex:1;"></span>
+    <button onclick="saveConfig('photo')" style="padding:4px 12px;background:rgba(45,143,255,0.12);border:1px solid var(--blue);border-radius:var(--radius);cursor:pointer;font-family:var(--font);font-size:8px;color:var(--blue);letter-spacing:0.12em;">💾 Save Config</button>
     <span id="pe-layer-info" style="font-size:9px;color:var(--text2);">No canvas</span>
   </div>
 
@@ -1114,11 +1207,14 @@ canvas{display:none;}
         <!-- OUTPUT LOCATION -->
         <div class="slabel slabel-rgb slabel-rgb--delay3">Output Location</div>
         <div class="check-row">
-          <input type="checkbox" id="usc-same-dir" checked onchange="uscToggleSameDir(this)"/>
+          <input type="checkbox" id="usc-same-dir" onchange="uscToggleSameDir(this)"/>
           <label class="check-label" for="usc-same-dir">Save alongside source</label>
         </div>
+        <div style="font-size:8px;color:var(--text2);margin:2px 0 4px 22px;line-height:1.5;">
+          By default, files are saved to your Downloads folder.
+        </div>
         <div id="usc-out-path-wrap" style="display:flex;gap:6px;margin-bottom:6px;">
-          <div id="usc-out-path-display" style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">— same as source —</div>
+          <div id="usc-out-path-display" style="flex:1;padding:7px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">— Downloads (default) —</div>
           <button class="icon-btn" onclick="uscPickFolder()">📁</button>
         </div>
         <div class="check-row">
@@ -1139,6 +1235,7 @@ canvas{display:none;}
         </div>
         <button class="btn btn-purple" id="usc-run-btn" onclick="uscRunBatch()" disabled>✦ Enhance All</button>
         <button class="btn btn-pink" onclick="uscClearAll()">✕ Clear Queue</button>
+        <button class="btn btn-blue" onclick="saveConfig('upscaler')" style="margin-top:4px;opacity:0.85;">💾 Save Config</button>
       </div>
     </div><!-- /usc-sidebar -->
 
@@ -1198,6 +1295,60 @@ canvas{display:none;}
   </div><!-- /usc-layout -->
 </div><!-- /upscaler-tab -->
 
+<!-- CONFIG TAB -->
+<div id="config-tab" style="display:none;flex:1;flex-direction:column;min-height:0;overflow:hidden;">
+  <div style="display:flex;flex:1;min-height:0;overflow:hidden;">
+
+    <!-- SIDEBAR -->
+    <div style="width:300px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;">
+      <div style="flex:1;overflow-y:auto;padding:12px 14px;">
+
+        <div class="slabel slabel-rgb">Import Config</div>
+        <div style="font-size:8px;color:var(--text2);line-height:1.6;margin-bottom:8px;">
+          Import a <code style="color:var(--cyan);">.ini</code>, <code style="color:var(--cyan);">.xml</code>, or <code style="color:var(--cyan);">.txt</code> config file.<br>
+          Configs persist until you manually remove them.
+        </div>
+        <div id="cfg-dropzone"
+          style="border:2px dashed var(--border2);border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:border-color 0.2s;margin-bottom:8px;"
+          onclick="document.getElementById('cfg-fileinput').click()"
+          ondragover="event.preventDefault();this.style.borderColor='var(--cyan)'"
+          ondragleave="this.style.borderColor='var(--border2)'"
+          ondrop="cfgOnDrop(event)">
+          <div style="font-size:22px;opacity:0.4;margin-bottom:4px;">⚙</div>
+          <div style="font-size:9px;color:var(--text2);letter-spacing:0.15em;">DROP CONFIG FILE</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:2px;">.ini · .xml · .txt</div>
+        </div>
+        <input type="file" id="cfg-fileinput" accept=".ini,.xml,.txt" style="display:none" onchange="cfgImportFile(this)"/>
+
+        <div class="slabel slabel-rgb slabel-rgb--delay1">Loaded Configs</div>
+        <div id="cfg-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+          <div id="cfg-empty-msg" style="font-size:9px;color:var(--text3);padding:4px 0;">No configs loaded.</div>
+        </div>
+
+        <div class="slabel slabel-rgb slabel-rgb--delay2">Active Profile</div>
+        <div id="cfg-active-display" style="padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:9px;color:var(--text2);margin-bottom:8px;">— none —</div>
+
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div style="flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;">
+      <div style="flex:1;overflow:auto;padding:16px;" id="cfg-main-scroll">
+        <div id="cfg-kv-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text3);text-align:center;gap:10px;padding:40px;">
+          <div style="font-size:40px;opacity:0.12;">⚙</div>
+          <div style="font-size:10px;letter-spacing:0.2em;">No config loaded</div>
+          <div style="font-size:8px;opacity:0.5;">Import a file or save one from any tab</div>
+        </div>
+        <div id="cfg-sections" style="display:none;"></div>
+      </div>
+      <div style="padding:6px 16px;background:var(--panel);border-top:1px solid var(--border);font-size:9px;color:var(--text2);letter-spacing:0.08em;" id="cfg-status">
+        Ready — import a config or save settings from any tab.
+      </div>
+    </div>
+
+  </div>
+</div><!-- /config-tab -->
+
 <canvas id="cvs"></canvas>
 
 <!-- LIGHTBOX -->
@@ -1211,13 +1362,15 @@ canvas{display:none;}
 //  TAB SWITCHING
 // ═══════════════════════════════════════════════════════
 function switchTab(tab) {
-  document.getElementById('dds-editor-tab').style.display = tab === 'dds' ? 'flex' : 'none';
-  document.getElementById('photo-editor-tab').style.display = tab === 'photo' ? 'flex' : 'none';
-  document.getElementById('upscaler-tab').style.display = tab === 'upscaler' ? 'flex' : 'none';
-  document.getElementById('tab-dds').classList.toggle('active', tab === 'dds');
-  document.getElementById('tab-photo').classList.toggle('active', tab === 'photo');
+  document.getElementById('dds-editor-tab').style.display  = tab === 'dds'      ? 'flex' : 'none';
+  document.getElementById('photo-editor-tab').style.display= tab === 'photo'    ? 'flex' : 'none';
+  document.getElementById('upscaler-tab').style.display    = tab === 'upscaler' ? 'flex' : 'none';
+  document.getElementById('config-tab').style.display      = tab === 'config'   ? 'flex' : 'none';
+  document.getElementById('tab-dds').classList.toggle('active',      tab === 'dds');
+  document.getElementById('tab-photo').classList.toggle('active',    tab === 'photo');
   document.getElementById('tab-upscaler').classList.toggle('active', tab === 'upscaler');
-  if (tab === 'photo') peInitIfNeeded();
+  document.getElementById('tab-config').classList.toggle('active',   tab === 'config');
+  if (tab === 'photo')    peInitIfNeeded();
   if (tab === 'upscaler') uscInitIfNeeded();
 }
 
@@ -1234,7 +1387,7 @@ const S = {
   outW: 0,
   outH: 0,
   outDir: null,
-  sameDir: true,
+  sameDir: false,
   skipSmaller: true,
   skipScale: 'keep',
   protectTiny: true,
@@ -1242,8 +1395,6 @@ const S = {
   protectTinyH: 64,
   autoConvA8R8G8B8: false,
   a8r8Target: 'DXT5',
-  isMobile: false,
-  zipMode: false,
 };
 let nextId = 1;
 
@@ -1288,6 +1439,98 @@ function selSkipScale(mode) {
     const b = document.getElementById('skip-scale-' + m);
     if (b) b.classList.toggle('active', m === mode);
   });
+}
+
+// ── Pow2 snap ──────────────────────────────────────────────────────
+const POW2_SIZES = [64, 128, 256, 512, 1024, 2048, 4096];
+S.pow2Snap      = false;
+S.pow2Max       = 512;
+
+function togglePow2Snap(chk) {
+  S.pow2Snap = chk.checked;
+  document.getElementById('pow2-snap-opts').style.display = chk.checked ? 'block' : 'none';
+  updatePow2Preview();
+}
+
+function setPow2Max(v) {
+  S.pow2Max = v;
+  document.querySelectorAll('.pow2-sz-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.textContent) === v)
+  );
+  updatePow2Preview();
+}
+
+function floorPow2(d, maxP) {
+  let p = 1;
+  while (p * 2 <= d && p * 2 <= maxP) p *= 2;
+  return p;
+}
+
+function snapToPow2(w, h) {
+  // Scale longest side to largest pow2 <= that side (and <= max),
+  // then derive the other side proportionally and snap it too.
+  // This preserves aspect ratio for uneven textures like 2304x3072.
+  if (w === h) {
+    const s = floorPow2(w, S.pow2Max);
+    return { w: s, h: s };
+  }
+  const landscape = w >= h;
+  const longSrc  = landscape ? w : h;
+  const shortSrc = landscape ? h : w;
+  const longSnap = floorPow2(longSrc, S.pow2Max);
+  const ratio    = shortSrc / longSrc;
+  const shortIdeal = longSnap * ratio;
+  const shortSnap  = floorPow2(Math.max(1, Math.round(shortIdeal)), S.pow2Max);
+  return landscape
+    ? { w: longSnap, h: shortSnap }
+    : { w: shortSnap, h: longSnap };
+}
+
+function updatePow2Preview() {
+  const el = document.getElementById('pow2-snap-preview');
+  if (!S.pow2Snap || !S.files.length) { el.textContent = '—'; return; }
+  const ready = S.files.filter(f => f.width);
+  if (!ready.length) { el.textContent = 'Add textures to preview'; return; }
+  const lines = ready.slice(0, 5).map(f => {
+    const sn = snapToPow2(f.width, f.height);
+    const changed = sn.w !== f.width || sn.h !== f.height;
+    return `${f.name}: ${f.width}×${f.height}${changed ? ' → ' + sn.w + '×' + sn.h : ' ✔'}`;
+  });
+  if (ready.length > 5) lines.push(`+${ready.length - 5} more`);
+  el.innerHTML = lines.join('<br>');
+}
+
+function initPow2Btns() {
+  const c = document.getElementById('pow2-snap-btns');
+  if (!c) return;
+  POW2_SIZES.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'size-btn pow2-sz-btn' + (s === S.pow2Max ? ' active' : '');
+    b.textContent = s;
+    b.style.cssText = 'flex:1;padding:5px 4px;font-size:9px;';
+    b.onclick = () => setPow2Max(s);
+    c.appendChild(b);
+  });
+}
+
+// ── Auto mip generator ─────────────────────────────────────────────
+S.autoMipGen = false;
+
+function calcAutoMips(w, h) {
+  return Math.floor(Math.log2(Math.max(w, h))) + 1;
+}
+
+function updateMipGenExample() {
+  const el = document.getElementById('mipgen-example');
+  if (!el) return;
+  const ready = S.files.filter(f => f.width);
+  if (ready.length) {
+    const f = ready[0];
+    const sn = S.pow2Snap ? snapToPow2(f.width, f.height) : { w: f.width, h: f.height };
+    el.textContent = `${sn.w}×${sn.h} = ${calcAutoMips(sn.w, sn.h)} levels`;
+  } else {
+    el.textContent = 'e.g. 512×512 = 9 levels';
+  }
 }
 
 function selA8R8Target(fmt) {
@@ -1391,14 +1634,13 @@ function initUI() {
     document.getElementById('autoconv-a8r8g8b8-opts').style.display = this.checked ? 'block' : 'none';
   });
 
-  // On mobile/Android, auto-enable ZIP mode since folder picker won't work
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || !window.showDirectoryPicker;
-  S.isMobile = isMobile;
-  if (isMobile) {
-    S.zipMode = true;
-    const zc = document.getElementById('zip-output-chk');
-    if (zc) zc.checked = true;
-  }
+  document.getElementById('auto-mipgen-chk').addEventListener('change', function() {
+    S.autoMipGen = this.checked;
+    document.getElementById('auto-mipgen-info').style.display = this.checked ? 'block' : 'none';
+    updateMipGenExample();
+  });
+
+  initPow2Btns();
 }
 
 function selFmt(k) {
@@ -1438,7 +1680,11 @@ function selSizePreset(p, btn) {
     S.outW = p.w; S.outH = p.h;
     document.getElementById('inp-w').value = p.w;
     document.getElementById('inp-h').value = p.h;
+    // Sync pow2 max to the largest side of the selected preset
+    // so Keep Aspect Ratio always uses the active preset as target
+    setPow2Max(Math.max(p.w, p.h));
   }
+  updatePow2Preview();
 }
 
 function clearSizeActive() {
@@ -1489,7 +1735,7 @@ function hexAlpha(hex, a) {
 function toggleSameDir(chk) {
   S.sameDir = chk.checked;
   document.getElementById('out-path-display').textContent =
-    chk.checked ? '— same as source —' : (S.outDir?.name || 'Not selected');
+    chk.checked ? '— same as source —' : (S.outDir?.name || '— Downloads (default) —');
 }
 
 async function pickOutputFolder() {
@@ -1535,8 +1781,8 @@ function onFileInput(inp) { addFiles([...inp.files]); inp.value = ''; }
 function onFolderInput(inp) { addFiles([...inp.files]); inp.value = ''; }
 
 function addFiles(files) {
-  const valid = files.filter(f => /\.(dds|png|jpe?g)$/i.test(f.name));
-  if (!valid.length) return setStatus('No valid files found (DDS/PNG/JPG)', 'error');
+  const valid = files.filter(f => /\.(dds|png|jpe?g|tga|bmp|svg)$/i.test(f.name));
+  if (!valid.length) return setStatus('No valid files found (DDS/PNG/JPG/TGA/BMP/SVG)', 'error');
   let loaded = 0;
   for (const file of valid) {
     const id = nextId++;
@@ -1556,6 +1802,8 @@ function addFiles(files) {
         if (loaded === valid.length) {
           document.getElementById('export-btn').disabled = false;
           setStatus(`${S.files.length} file(s) loaded`, 'ok');
+          updatePow2Preview();
+          updateMipGenExample();
         }
       }).catch(err => {
         entry.status = 'error'; entry.statusMsg = err.message;
@@ -1575,8 +1823,14 @@ async function parseEntry(entry) {
     entry.fmt = info.format; entry.origFmt = info.format;
     entry.origMipCount = info.mipCount;
     entry.rgba = decompressToRGBA(info.pixelData, info.width, info.height, info.format);
+  } else if (entry.ext === 'tga') {
+    const { rgba, width, height } = decodeTGA(new Uint8Array(entry.rawBuffer));
+    entry.rgba = rgba; entry.width = width; entry.height = height;
+    entry.fmt = 'TGA'; entry.origFmt = 'TGA'; entry.origMipCount = 1;
   } else {
-    const blob = new Blob([entry.rawBuffer], {type: entry.ext === 'png' ? 'image/png' : 'image/jpeg'});
+    const mimeMap = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', bmp:'image/bmp', svg:'image/svg+xml' };
+    const mime = mimeMap[entry.ext] || 'image/png';
+    const blob = new Blob([entry.rawBuffer], { type: mime });
     const url = URL.createObjectURL(blob);
     await new Promise((res, rej) => {
       const img = new Image();
@@ -1591,10 +1845,9 @@ async function parseEntry(entry) {
         entry.width = cvs.width; entry.height = cvs.height;
         entry.fmt = entry.ext.toUpperCase(); entry.origFmt = entry.fmt;
         entry.origMipCount = 1;
-        URL.revokeObjectURL(url);
-        res();
+        URL.revokeObjectURL(url); res();
       };
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Failed to decode image')); };
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Failed to decode ' + entry.ext.toUpperCase())); };
       img.src = url;
     });
   }
@@ -1628,12 +1881,12 @@ function addRow(entry) {
 function updateRow(entry) {
   const inf = document.getElementById('cell-info-' + entry.id);
   const sta = document.getElementById('cell-status-' + entry.id);
-  if (inf) inf.textContent = entry.status === 'error' ? (entry.statusMsg || 'error') : (entry.width ? `${entry.width}×${entry.height} ${entry.fmt}` : '—');
+  if (inf) inf.textContent = entry.width ? `${entry.width}×${entry.height} ${entry.fmt}` : '—';
   if (sta) {
     sta.className = 'status-badge';
     if (entry.status === 'ready')      { sta.classList.add('badge-wait'); sta.textContent = 'READY'; }
     else if (entry.status === 'done')  { sta.classList.add('badge-ok');   sta.textContent = 'DONE'; }
-    else if (entry.status === 'error') { sta.classList.add('badge-err');  sta.textContent = 'ERROR'; sta.title = entry.statusMsg || ''; }
+    else if (entry.status === 'error') { sta.classList.add('badge-err');  sta.textContent = 'ERROR'; }
     else if (entry.status === 'processing') { sta.classList.add('badge-proc'); sta.textContent = '...'; }
   }
 }
@@ -1749,7 +2002,6 @@ async function doExportAll() {
   }
 
   document.getElementById('export-btn').disabled = true;
-  _zipQueue.length = 0;
   const pw = document.getElementById('progress-wrap');
   const pf = document.getElementById('progress-fill');
   const pt = document.getElementById('progress-text');
@@ -1767,13 +2019,19 @@ async function doExportAll() {
       const isTiny = S.protectTiny && (w <= S.protectTinyW || h <= S.protectTinyH);
       let tw = 0, th = 0;
 
-      if (!S.keepOrigSize && !isTiny) {
-        tw = parseInt(document.getElementById('inp-w').value) || S.outW || 0;
-        th = parseInt(document.getElementById('inp-h').value) || S.outH || 0;
+      if (!isTiny) {
+        if (S.pow2Snap) {
+          // Pow2 snap uses original dimensions — ignores manual W/H inputs
+          const sn = snapToPow2(w, h);
+          tw = sn.w; th = sn.h;
+        } else if (!S.keepOrigSize) {
+          tw = parseInt(document.getElementById('inp-w').value) || S.outW || 0;
+          th = parseInt(document.getElementById('inp-h').value) || S.outH || 0;
+        }
       }
 
       if (tw > 0 && th > 0) {
-        if (S.skipSmaller && (w < tw || h < th)) {
+        if (!S.pow2Snap && S.skipSmaller && (w < tw || h < th)) {
           if (S.skipScale === 'keep') {
             tw = 0; th = 0;
           } else if (S.skipScale === 'half') {
@@ -1792,26 +2050,21 @@ async function doExportAll() {
       }
 
       let fmt;
-      if (S.keepOrigFmt) {
-        const orig = entry.origFmt;
-        fmt = (orig && FORMATS[orig] && orig !== 'PNG' && orig !== 'JPEG') ? orig : S.targetFmt;
+      if (isTiny || S.keepOrigFmt) {
+        fmt = entry.origFmt && FORMATS[entry.origFmt] ? entry.origFmt : S.targetFmt;
       } else {
         fmt = S.targetFmt;
       }
 
-      // A8R8G8B8 auto-convert: always applies regardless of keepOrigFmt or isTiny
-      if (S.autoConvA8R8G8B8 && entry.origFmt === 'A8R8G8B8') {
+      if (!isTiny && S.autoConvA8R8G8B8 && entry.origFmt === 'A8R8G8B8') {
         fmt = S.a8r8Target;
       }
-
-      // isTiny textures keep their original format (but A8R8G8B8 auto-convert already ran above)
-      if (isTiny && !S.autoConvA8R8G8B8) {
-        const orig = entry.origFmt;
-        fmt = (orig && FORMATS[orig] && orig !== 'PNG' && orig !== 'JPEG') ? orig : S.targetFmt;
-      }
-
-      // BC7 can't be re-encoded — write as DXT5
       if (fmt === 'BC7') fmt = 'DXT5';
+
+      // Mip count: auto-generate overrides manual selection
+      const mipLevels = S.autoMipGen
+        ? calcAutoMips(w, h)
+        : (S.mipLevels === 'keep' ? entry.origMipCount : S.mipLevels);
 
       let buf, outName;
       const base = entry.name.replace(/\.[^.]+$/, '');
@@ -1823,7 +2076,7 @@ async function doExportAll() {
         buf = await rgbaToJPEG(rgba, w, h);
         outName = keepName ? `${base}.jpg` : `${base}_export.jpg`;
       } else {
-        const enc = encodeWithMips(rgba, w, h, fmt, S.mipLevels);
+        const enc = encodeWithMips(rgba, w, h, fmt, mipLevels);
         buf = writeDDS(w, h, fmt, enc.data, enc.mips);
         outName = keepName ? `${base}.dds` : `${base}_${fmt}.dds`;
       }
@@ -1842,13 +2095,8 @@ async function doExportAll() {
 
   document.getElementById('export-btn').disabled = false;
   setStatus(`Done! ${done} file(s) exported`, 'ok');
-
-  if (S.zipMode && _zipQueue.length) {
-    const zip = buildZip(_zipQueue);
-    _zipQueue.length = 0;
-    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    downloadBlob(new Blob([zip], { type: 'application/zip' }), `dds_export_${ts}.zip`);
-  }
+  toast(`Finished ${done} file${done !== 1 ? 's' : ''}`, 'ok');
+  hapticDone();
 
   const allDone = S.files.every(f => f.status === 'done');
   if (allDone) {
@@ -1859,117 +2107,22 @@ async function doExportAll() {
 }
 
 // ── UNIFIED SAVE FILE (all platforms) ──
-const _zipQueue = [];
-
 async function saveFile(buf, name) {
-  if (S.zipMode) {
-    _zipQueue.push({ name, data: new Uint8Array(buf instanceof ArrayBuffer ? buf : buf.buffer || buf) });
-    return;
-  }
-
-  const data = buf instanceof ArrayBuffer ? buf : buf.buffer || buf;
-
+  // Try File System Access API first (desktop/modern browsers)
   if (!S.sameDir && S.outDir) {
     try {
       const fh = await S.outDir.getFileHandle(name, { create: true });
       const writable = await fh.createWritable();
-      await writable.write(data);
-      await writable.truncate(data.byteLength || data.length);
+      await writable.write(buf instanceof ArrayBuffer ? buf : buf.buffer || buf);
       await writable.close();
       return;
-    } catch(e) { /* fall through to download */ }
+    } catch(e) { /* fall through */ }
   }
 
   const ext = name.split('.').pop().toLowerCase();
   const mime = ext === 'png' ? 'image/png' : (ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : 'application/octet-stream';
-  downloadBlob(new Blob([data], { type: mime }), name);
-}
-
-function buildZip(files) {
-  // Minimal ZIP builder — no compression (store only), works everywhere
-  const encoder = new TextEncoder();
-  const localHeaders = [];
-  let dataOffset = 0;
-  const parts = [];
-
-  for (const { name, data } of files) {
-    const nameBytes = encoder.encode(name);
-    const crc = crc32(data);
-    const local = new Uint8Array(30 + nameBytes.length);
-    const lv = new DataView(local.buffer);
-    lv.setUint32(0,  0x04034b50, true); // local file header sig
-    lv.setUint16(4,  20, true);          // version needed
-    lv.setUint16(6,  0,  true);          // flags
-    lv.setUint16(8,  0,  true);          // compression: store
-    lv.setUint16(10, 0,  true);          // mod time
-    lv.setUint16(12, 0,  true);          // mod date
-    lv.setUint32(14, crc, true);         // CRC-32
-    lv.setUint32(18, data.length, true); // compressed size
-    lv.setUint32(22, data.length, true); // uncompressed size
-    lv.setUint16(26, nameBytes.length, true);
-    lv.setUint16(28, 0, true);
-    local.set(nameBytes, 30);
-    localHeaders.push({ nameBytes, crc, size: data.length, offset: dataOffset });
-    dataOffset += local.length + data.length;
-    parts.push(local, data);
-  }
-
-  // Central directory
-  const cdParts = [];
-  let cdSize = 0;
-  for (let i = 0; i < files.length; i++) {
-    const { nameBytes, crc, size, offset } = localHeaders[i];
-    const cd = new Uint8Array(46 + nameBytes.length);
-    const cv = new DataView(cd.buffer);
-    cv.setUint32(0,  0x02014b50, true); // central dir sig
-    cv.setUint16(4,  20, true);
-    cv.setUint16(6,  20, true);
-    cv.setUint16(8,  0,  true);
-    cv.setUint16(10, 0,  true);
-    cv.setUint16(12, 0,  true);
-    cv.setUint16(14, 0,  true);
-    cv.setUint32(16, crc, true);
-    cv.setUint32(20, size, true);
-    cv.setUint32(24, size, true);
-    cv.setUint16(28, nameBytes.length, true);
-    cv.setUint16(30, 0, true);
-    cv.setUint16(32, 0, true);
-    cv.setUint16(34, 0, true);
-    cv.setUint16(36, 0, true);
-    cv.setUint32(38, 0, true);
-    cv.setUint32(42, offset, true);
-    cd.set(nameBytes, 46);
-    cdParts.push(cd);
-    cdSize += cd.length;
-  }
-
-  // End of central directory
-  const eocd = new Uint8Array(22);
-  const ev = new DataView(eocd.buffer);
-  ev.setUint32(0,  0x06054b50, true);
-  ev.setUint16(4,  0, true);
-  ev.setUint16(6,  0, true);
-  ev.setUint16(8,  files.length, true);
-  ev.setUint16(10, files.length, true);
-  ev.setUint32(12, cdSize, true);
-  ev.setUint32(16, dataOffset, true);
-  ev.setUint16(20, 0, true);
-
-  const all = [...parts, ...cdParts, eocd];
-  const total = all.reduce((s, a) => s + a.length, 0);
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const a of all) { out.set(a, off); off += a.length; }
-  return out;
-}
-
-function crc32(data) {
-  let crc = 0xFFFFFFFF;
-  for (let i = 0; i < data.length; i++) {
-    crc ^= data[i];
-    for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
-  }
-  return (crc ^ 0xFFFFFFFF) >>> 0;
+  const blob = new Blob([buf], { type: mime });
+  downloadBlob(blob, name);
 }
 
 function downloadBlob(blob, name) {
@@ -1980,21 +2133,6 @@ function downloadBlob(blob, name) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-}
-
-// Sequential download queue to avoid browser popup blocker on rapid batch downloads
-const _dlQueue = [];
-let _dlRunning = false;
-async function queueDownload(blob, name) {
-  _dlQueue.push({ blob, name });
-  if (_dlRunning) return;
-  _dlRunning = true;
-  while (_dlQueue.length) {
-    const { blob, name } = _dlQueue.shift();
-    downloadBlob(blob, name);
-    await sleep(300); // give browser time between downloads
-  }
-  _dlRunning = false;
 }
 
 // PNG export via canvas
@@ -2050,6 +2188,70 @@ function setStatus(msg, type = 'idle', loading = false) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  TGA DECODER  (Type 2 RGB/RGBA, Type 3 Grey,
+//                Type 10 RLE-RGB/RGBA, Type 11 RLE-Grey)
+// ═══════════════════════════════════════════════════════
+function decodeTGA(u8) {
+  const idLen    = u8[0];
+  const colorMap = u8[1];
+  const imgType  = u8[2];
+  if (colorMap !== 0 && imgType !== 2 && imgType !== 3 && imgType !== 10 && imgType !== 11)
+    throw new Error('Unsupported TGA type: ' + imgType);
+  const width   = u8[12] | (u8[13] << 8);
+  const height  = u8[14] | (u8[15] << 8);
+  const bpp     = u8[16];
+  const topDown = (u8[17] & 0x20) !== 0;
+  const channels = Math.ceil(bpp / 8);
+  const isRLE   = imgType === 10 || imgType === 11;
+  const isGrey  = imgType === 3  || imgType === 11;
+  const offset  = 18 + idLen + (colorMap ? (u8[5] | (u8[6] << 8)) * Math.ceil(u8[7] / 8) : 0);
+
+  let raw;
+  if (!isRLE) {
+    raw = u8.subarray(offset, offset + width * height * channels);
+  } else {
+    raw = new Uint8Array(width * height * channels);
+    let src = offset, dst = 0, total = width * height;
+    while (dst < total) {
+      const hdr = u8[src++], count = (hdr & 0x7F) + 1;
+      if (hdr & 0x80) {
+        const px = u8.subarray(src, src + channels); src += channels;
+        for (let i = 0; i < count; i++) raw.set(px, dst++ * channels);
+      } else {
+        const len = count * channels;
+        raw.set(u8.subarray(src, src + len), dst * channels);
+        src += len; dst += count;
+      }
+    }
+  }
+
+  const pixels = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    const p = i * channels, o = i * 4;
+    if (isGrey) {
+      pixels[o] = pixels[o+1] = pixels[o+2] = raw[p];
+      pixels[o+3] = channels >= 2 ? raw[p+1] : 255;
+    } else {
+      pixels[o]   = raw[p+2]; // R (TGA stores BGR)
+      pixels[o+1] = raw[p+1]; // G
+      pixels[o+2] = raw[p+0]; // B
+      pixels[o+3] = channels >= 4 ? raw[p+3] : 255;
+    }
+  }
+
+  // Flip vertically if bottom-up origin (TGA default)
+  if (!topDown) {
+    const rgba = new Uint8ClampedArray(width * height * 4);
+    for (let row = 0; row < height; row++) {
+      const s = (height - 1 - row) * width * 4;
+      rgba.set(pixels.subarray(s, s + width * 4), row * width * 4);
+    }
+    return { rgba, width, height };
+  }
+  return { rgba: new Uint8ClampedArray(pixels), width, height };
+}
+
+// ═══════════════════════════════════════════════════════
 //  DDS PARSER
 // ═══════════════════════════════════════════════════════
 function parseDDS(buffer) {
@@ -2059,68 +2261,41 @@ function parseDDS(buffer) {
   const width    = v.getUint32(16, true);
   const mipCount = v.getUint32(28, true) || 1;
   const pfFlags  = v.getUint32(80, true);
-  let format = 'DXT5', fourCC = '';
-  let isDX10 = false;
+  let format = 'UNKNOWN', fourCC = '';
 
   if (pfFlags & 0x4) {
     fourCC = String.fromCharCode(v.getUint8(84),v.getUint8(85),v.getUint8(86),v.getUint8(87));
-    if      (fourCC === 'DXT1') format = 'DXT1';
+    if (fourCC === 'DXT1') format = 'DXT1';
     else if (fourCC === 'DXT3') format = 'DXT3';
     else if (fourCC === 'DXT5') format = 'DXT5';
     else if (fourCC === 'DX10') {
-      isDX10 = true;
-      const dxgiFmt = v.getUint32(128, true);
-      if      (dxgiFmt === 98) format = 'BC7';
-      else if (dxgiFmt === 80 || dxgiFmt === 81) format = 'ATI1';
-      else if (dxgiFmt === 83 || dxgiFmt === 84) format = 'ATI2';
-      else if (dxgiFmt === 87 || dxgiFmt === 28) format = 'A8R8G8B8';
-      else if (dxgiFmt === 71 || dxgiFmt === 72 || dxgiFmt === 74) format = 'DXT1';
-      else if (dxgiFmt === 77 || dxgiFmt === 78 || dxgiFmt === 80) format = 'DXT3';
-      else if (dxgiFmt === 67 || dxgiFmt === 68 || dxgiFmt === 70 ||
-               dxgiFmt === 75 || dxgiFmt === 76) format = 'DXT5';
-      else format = 'DXT5';
+      // Read DXGI format from DX10 header (offset 128)
+      const dxgiFormat = v.getUint32(128, true);
+      if (dxgiFormat === 98) format = 'BC7';
+      else if (dxgiFormat === 80) format = 'ATI1';  // BC4_UNORM
+      else if (dxgiFormat === 83) format = 'ATI2';  // BC5_UNORM
+      else format = 'BC7'; // fallback
     }
     else if (fourCC === 'ATI1' || fourCC === 'BC4U' || fourCC === 'BC4S') format = 'ATI1';
-    else if (fourCC === 'ATI2' || fourCC === 'BC5U' || fourCC === 'BC5S' || fourCC === '3Dc\0' || fourCC === 'A2XY') format = 'ATI2';
-    else {
-      // Unknown fourCC — attempt to fall through to uncompressed detection
-      fourCC = '';
-    }
-  }
-
-  if (!fourCC || fourCC === '') {
-    // Uncompressed: check masks
+    else if (fourCC === 'ATI2' || fourCC === 'BC5U' || fourCC === 'BC5S') format = 'ATI2';
+    else format = fourCC;
+  } else if (pfFlags & 0x40) {
     const bpp = v.getUint32(88, true);
     const rm  = v.getUint32(92, true);
     const gm  = v.getUint32(96, true);
     const bm  = v.getUint32(100, true);
     const am  = v.getUint32(104, true);
-
-    if (pfFlags & 0x20000) {
-      format = 'L8';
-    } else if (pfFlags & 0x2) {
-      format = 'A8';
-    } else if ((pfFlags & 0x40) || (pfFlags & 0x41)) {
-      if (bpp === 32) {
-        if (am !== 0 || (pfFlags & 0x1)) format = 'A8R8G8B8';
-        else format = 'A8R8G8B8'; // X8R8G8B8 — treat as A8R8G8B8 with full alpha
-      } else if (bpp === 16) {
-        format = 'A1R5G5B5';
-      } else {
-        format = 'A8R8G8B8';
-      }
-    } else {
-      // Fallback: guess from bpp
-      if (bpp === 8) format = 'L8';
-      else format = 'A8R8G8B8';
-    }
+    if (bpp === 32 && am !== 0) format = 'A8R8G8B8';
+    else if (bpp === 16 && am !== 0) format = 'A1R5G5B5';
+    else format = 'RGB';
+  } else if (pfFlags & 0x20000) {
+    format = 'L8';
+  } else if (pfFlags & 0x2) {
+    format = 'A8';
   }
 
-  const dataOffset = Math.min(128 + (isDX10 ? 20 : 0), buffer.byteLength);
-  const pixelData = dataOffset < buffer.byteLength
-    ? new Uint8Array(buffer, dataOffset)
-    : new Uint8Array(0);
-  return { width, height, mipCount, format, pixelData };
+  const dataOffset = 128 + (fourCC === 'DX10' ? 20 : 0);
+  return { width, height, mipCount, format, pixelData: new Uint8Array(buffer, dataOffset) };
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2134,66 +2309,57 @@ function writeDDS(width, height, format, pixelData, mips = 1) {
   const v = new DataView(out);
   const u = new Uint8Array(out);
 
-  // Base flags: CAPS | HEIGHT | WIDTH | PIXELFORMAT
-  let flags = 0x1 | 0x2 | 0x4 | 0x1000;
-  if (fmt.block) {
-    flags |= 0x80000; // DDSD_LINEARSIZE for compressed
-  } else {
-    flags |= 0x8; // DDSD_PITCH for uncompressed
-  }
-  if (mips > 1) flags |= 0x20000; // DDSD_MIPMAPCOUNT
+  let flags = 0x1 | 0x2 | 0x4 | 0x1000 | 0x80000;
+  if (mips > 1) flags |= 0x20000;
 
-  v.setUint32(0, 0x20534444, true); // 'DDS '
-  v.setUint32(4, 124, true);        // header size
+  v.setUint32(0, 0x20534444, true);
+  v.setUint32(4, 124, true);
   v.setUint32(8, flags, true);
   v.setUint32(12, height, true);
   v.setUint32(16, width, true);
 
-  // pitchOrLinearSize
   if (fmt.block) {
-    v.setUint32(20, Math.max(1, Math.ceil(width/4)) * Math.max(1, Math.ceil(height/4)) * fmt.bs, true);
+    v.setUint32(20, Math.ceil(width/4) * Math.ceil(height/4) * fmt.bs, true);
   } else {
-    v.setUint32(20, Math.max(1, Math.ceil(width * fmt.bpp / 8)), true);
+    v.setUint32(20, width * (fmt.bpp / 8), true);
   }
 
-  v.setUint32(24, 0, true);    // depth
-  v.setUint32(28, Math.max(1, mips), true); // mipMapCount
-  // reserved1[11] at offsets 32–75 — all zero
-  v.setUint32(76, 32, true);   // pixel format struct size
+  v.setUint32(28, mips, true);
+  v.setUint32(76, 32, true); // pixel format size
 
   if (isDX10) {
-    v.setUint32(80, 0x4, true); // DDPF_FOURCC
-    v.setUint8(84, 0x44); v.setUint8(85, 0x58); v.setUint8(86, 0x31); v.setUint8(87, 0x30); // 'DX10'
-    let dxgiFmt = 98;
-    if (format === 'ATI1') dxgiFmt = 80;
-    if (format === 'ATI2') dxgiFmt = 83;
-    v.setUint32(128, dxgiFmt, true); // DXGI format
-    v.setUint32(132, 3, true);       // D3D10_RESOURCE_DIMENSION_TEXTURE2D
-    v.setUint32(136, 0, true);       // miscFlag
-    v.setUint32(140, 1, true);       // arraySize
-    v.setUint32(144, 0, true);       // miscFlags2
+    // Use DX10 extended header for BC7/ATI1/ATI2
+    v.setUint32(80, 0x4, true);
+    for (let i = 0; i < 4; i++) v.setUint8(84 + i, 'DX10'.charCodeAt(i));
+    // DX10 header at offset 128
+    let dxgiFmt = 98; // DXGI_FORMAT_BC7_UNORM default
+    if (format === 'ATI1') dxgiFmt = 80; // DXGI_FORMAT_BC4_UNORM
+    if (format === 'ATI2') dxgiFmt = 83; // DXGI_FORMAT_BC5_UNORM
+    v.setUint32(128, dxgiFmt, true);
+    v.setUint32(132, 3, true); // D3D10_RESOURCE_DIMENSION_TEXTURE2D
+    v.setUint32(136, 0, true);
+    v.setUint32(140, 1, true);
+    v.setUint32(144, 0, true);
   } else if (fmt.cc) {
-    v.setUint32(80, 0x4, true); // DDPF_FOURCC
+    v.setUint32(80, 0x4, true);
     for (let i = 0; i < 4; i++) v.setUint8(84 + i, fmt.cc.charCodeAt(i));
-    // RGBBitCount, masks all zero for FourCC formats
   } else {
-    // Uncompressed
-    let pfFlags = 0x40; // DDPF_RGB
-    if (fmt.alpha) pfFlags |= 0x1; // DDPF_ALPHAPIXELS
-    if (format === 'L8') pfFlags = 0x20000; // DDPF_LUMINANCE
-    if (format === 'A8') pfFlags = 0x2;     // DDPF_ALPHA
-    v.setUint32(80, pfFlags, true);
-    v.setUint32(88, fmt.bpp, true); // RGBBitCount
+    let pf = 0x40;
+    if (fmt.alpha) pf |= 0x1;
+    if (format === 'L8') pf = 0x20000;
+    if (format === 'A8') pf = 0x2;
+    v.setUint32(80, pf, true);
+    v.setUint32(88, fmt.bpp, true);
     if (format === 'A8R8G8B8') {
-      v.setUint32(92,  0x00FF0000, true); // R mask
-      v.setUint32(96,  0x0000FF00, true); // G mask
-      v.setUint32(100, 0x000000FF, true); // B mask
-      v.setUint32(104, 0xFF000000, true); // A mask
+      v.setUint32(92,  0x00FF0000, true);
+      v.setUint32(96,  0x0000FF00, true);
+      v.setUint32(100, 0x000000FF, true);
+      v.setUint32(104, 0xFF000000, true);
     } else if (format === 'A1R5G5B5') {
-      v.setUint32(92,  0x00007C00, true);
-      v.setUint32(96,  0x000003E0, true);
-      v.setUint32(100, 0x0000001F, true);
-      v.setUint32(104, 0x00008000, true);
+      v.setUint32(92,  0x7C00, true);
+      v.setUint32(96,  0x03E0, true);
+      v.setUint32(100, 0x001F, true);
+      v.setUint32(104, 0x8000, true);
     } else if (format === 'L8') {
       v.setUint32(92, 0xFF, true);
     } else if (format === 'A8') {
@@ -2201,11 +2367,9 @@ function writeDDS(width, height, format, pixelData, mips = 1) {
     }
   }
 
-  // caps
-  let caps = 0x1000; // DDSCAPS_TEXTURE
-  if (mips > 1) caps |= 0x400008; // DDSCAPS_MIPMAP | DDSCAPS_COMPLEX
+  let caps = 0x1000;
+  if (mips > 1) caps |= 0x400008;
   v.setUint32(108, caps, true);
-  // caps2, caps3, caps4, reserved2 all zero
 
   u.set(pixelData, headerSize);
   return out;
@@ -2262,11 +2426,6 @@ function decodeATI2Block(px, o) {
 }
 
 function decompressToRGBA(px, w, h, fmt) {
-  if (!px || px.length === 0 || !w || !h) {
-    const rgba = new Uint8ClampedArray(Math.max(w,1) * Math.max(h,1) * 4);
-    for (let i = 0; i < rgba.length; i += 4) { rgba[i]=255; rgba[i+2]=255; rgba[i+3]=255; }
-    return rgba;
-  }
   const rgba = new Uint8ClampedArray(w * h * 4);
   for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
 
@@ -2422,10 +2581,6 @@ function decompressToRGBA(px, w, h, fmt) {
     return rgba;
   }
 
-  // Unknown / unsupported format — return magenta to signal the issue visually
-  for (let i = 0; i < w*h; i++) {
-    rgba[i*4]=255; rgba[i*4+1]=0; rgba[i*4+2]=255; rgba[i*4+3]=255;
-  }
   return rgba;
 }
 
@@ -2556,16 +2711,15 @@ function downsampleRGBA(rgba, w, h) {
   const out = new Uint8ClampedArray(nw * nh * 4);
   for (let y = 0; y < nh; y++) {
     for (let x = 0; x < nw; x++) {
-      const sx = x * 2, sy = y * 2;
-      const i00 = (Math.min(sy,   h-1) * w + Math.min(sx,   w-1)) * 4;
-      const i10 = (Math.min(sy,   h-1) * w + Math.min(sx+1, w-1)) * 4;
-      const i01 = (Math.min(sy+1, h-1) * w + Math.min(sx,   w-1)) * 4;
-      const i11 = (Math.min(sy+1, h-1) * w + Math.min(sx+1, w-1)) * 4;
       const o = (y * nw + x) * 4;
-      out[o]   = (rgba[i00]   + rgba[i10]   + rgba[i01]   + rgba[i11])   >> 2;
-      out[o+1] = (rgba[i00+1] + rgba[i10+1] + rgba[i01+1] + rgba[i11+1]) >> 2;
-      out[o+2] = (rgba[i00+2] + rgba[i10+2] + rgba[i01+2] + rgba[i11+2]) >> 2;
-      out[o+3] = (rgba[i00+3] + rgba[i10+3] + rgba[i01+3] + rgba[i11+3]) >> 2;
+      for (let c = 0; c < 4; c++) {
+        out[o+c] = (
+          rgba[(Math.min(y*2,   h-1)*w + Math.min(x*2,   w-1))*4+c] +
+          rgba[(Math.min(y*2,   h-1)*w + Math.min(x*2+1, w-1))*4+c] +
+          rgba[(Math.min(y*2+1, h-1)*w + Math.min(x*2,   w-1))*4+c] +
+          rgba[(Math.min(y*2+1, h-1)*w + Math.min(x*2+1, w-1))*4+c]
+        ) >> 2;
+      }
     }
   }
   return { rgba: out, w: nw, h: nh };
@@ -2573,11 +2727,9 @@ function downsampleRGBA(rgba, w, h) {
 
 function encodeWithMips(rgba, w, h, fmt, requestedMips) {
   const maxMips = Math.floor(Math.log2(Math.max(w, h))) + 1;
-  // 'keep' or any non-positive number → full mip chain
   const mipCount = (requestedMips === 'keep' || !(requestedMips >= 1))
     ? maxMips
     : Math.min(Number(requestedMips), maxMips);
-
   const chunks = [];
   let cw = w, ch = h, cur = rgba;
   for (let m = 0; m < mipCount; m++) {
@@ -2586,7 +2738,6 @@ function encodeWithMips(rgba, w, h, fmt, requestedMips) {
     const down = downsampleRGBA(cur, cw, ch);
     cur = down.rgba; cw = down.w; ch = down.h;
   }
-
   const total = chunks.reduce((s, c) => s + c.length, 0);
   const data = new Uint8Array(total);
   let off = 0;
@@ -2595,9 +2746,6 @@ function encodeWithMips(rgba, w, h, fmt, requestedMips) {
 }
 
 function encodeRGBA(rgba, w, h, fmt) {
-  // BC7 encode is not supported — silently downgrade to DXT5
-  if (fmt === 'BC7') fmt = 'DXT5';
-
   if (fmt === 'A8R8G8B8') {
     const o = new Uint8Array(w*h*4);
     for (let i=0;i<w*h;i++) {
@@ -2667,7 +2815,7 @@ function encodeRGBA(rgba, w, h, fmt) {
         const hi = Math.round((blk[i*2+1]||[0,0,0,0])[3]/17)&0xF;
         out[oo++] = lo | (hi<<4);
       }
-    } else if (fmt === 'DXT5') {
+    } else if (fmt === 'DXT5' || fmt === 'BC7') {
       const a0 = blk.reduce((m,p)=>Math.max(m,p[3]),0);
       const a1 = blk.reduce((m,p)=>Math.min(m,p[3]),255);
       out[oo++]=a0; out[oo++]=a1;
@@ -2686,27 +2834,20 @@ function encodeRGBA(rgba, w, h, fmt) {
       out[oo++]=hi&0xFF; out[oo++]=(hi>>8)&0xFF; out[oo++]=(hi>>16)&0xFF;
     }
 
-    // Color block (shared by DXT1/3/5)
+    // Color block (shared by DXT1/3/5/BC7)
     let minR=255,minG=255,minB=255,maxR=0,maxG=0,maxB=0;
     for (const [r,g,b] of blk) {
       minR=Math.min(minR,r); minG=Math.min(minG,g); minB=Math.min(minB,b);
       maxR=Math.max(maxR,r); maxG=Math.max(maxG,g); maxB=Math.max(maxB,b);
     }
-    let c0 = ((maxR>>3)<<11)|((maxG>>2)<<5)|(maxB>>3);
-    let c1 = ((minR>>3)<<11)|((minG>>2)<<5)|(minB>>3);
-
-    // For DXT5/DXT3: c0 MUST be > c1 so decoders use the 4-color path, not 1-bit alpha
-    if (fmt !== 'DXT1') {
-      if (c0 <= c1) {
-        // swap so c0 > c1; if equal, bump c0
-        const tmp = c0; c0 = c1; c1 = tmp;
-        if (c0 === c1) { c0 = Math.min(c0 + 1, 0xFFFF); }
-      }
-    }
-    out[oo++]=c0&0xFF; out[oo++]=(c0>>8)&0xFF;
-    out[oo++]=c1&0xFF; out[oo++]=(c1>>8)&0xFF;
-    const cr0r=((c0>>11)&31)*255/31|0, cr0g=((c0>>5)&63)*255/63|0, cr0b=(c0&31)*255/31|0;
-    const cr1r=((c1>>11)&31)*255/31|0, cr1g=((c1>>5)&63)*255/63|0, cr1b=(c1&31)*255/31|0;
+    const c0 = ((maxR>>3)<<11)|((maxG>>2)<<5)|(maxB>>3);
+    const c1 = ((minR>>3)<<11)|((minG>>2)<<5)|(minB>>3);
+    const useC0 = fmt==='DXT1' ? c0 : Math.max(c0,c1);
+    const useC1 = fmt==='DXT1' ? c1 : Math.min(c0,c1);
+    out[oo++]=useC0&0xFF; out[oo++]=(useC0>>8)&0xFF;
+    out[oo++]=useC1&0xFF; out[oo++]=(useC1>>8)&0xFF;
+    const cr0r=((useC0>>11)&31)*255/31|0, cr0g=((useC0>>5)&63)*255/63|0, cr0b=(useC0&31)*255/31|0;
+    const cr1r=((useC1>>11)&31)*255/31|0, cr1g=((useC1>>5)&63)*255/63|0, cr1b=(useC1&31)*255/31|0;
     const EC = [
       [cr0r,cr0g,cr0b],[cr1r,cr1g,cr1b],
       [(2*cr0r+cr1r)/3|0,(2*cr0g+cr1g)/3|0,(2*cr0b+cr1b)/3|0],
@@ -3537,7 +3678,7 @@ function hue2rgb(p,q,t) {
 const USC = {
   files: [],
   outDir: null,
-  sameDir: true,
+  sameDir: false,
   inited: false,
 };
 let uscNextId = 1;
@@ -3590,7 +3731,7 @@ function uscApplyPreset(p) {
 function uscToggleSameDir(chk) {
   USC.sameDir = chk.checked;
   document.getElementById('usc-out-path-display').textContent =
-    chk.checked ? '— same as source —' : (USC.outDir?.name || 'Not selected');
+    chk.checked ? '— same as source —' : (USC.outDir?.name || '— Downloads (default) —');
 }
 
 async function uscPickFolder() {
@@ -3813,6 +3954,8 @@ async function uscRunBatch() {
 
   document.getElementById('usc-run-btn').disabled = false;
   uscSetStatus(`Done! ${done} file(s) enhanced`, 'ok');
+  toast(`Finished ${done} file${done !== 1 ? 's' : ''}`, 'ok');
+  hapticDone();
 
   const allDone = USC.files.every(f => f.status === 'done');
   if (allDone) {
@@ -4105,6 +4248,393 @@ function uscSetStatus(msg, type='idle', loading=false) {
   dot.style.background = type==='ok' ? '#00ff88' : type==='error' ? '#ff2d78' : '#b060ff';
   dot.style.boxShadow  = type==='ok' ? '0 0 6px #00ff88' : type==='error' ? '0 0 6px #ff2d78' : '0 0 6px #b060ff';
   document.getElementById('usc-spin-wrap').style.display = loading ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFIG SYSTEM
+// ═══════════════════════════════════════════════════════
+const CFG = { configs: [], activeIdx: -1 };
+
+function cfgParseINI(text) {
+  const pairs = []; let section = 'General';
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line[0] === ';' || line[0] === '#') continue;
+    const sec = line.match(/^\[([^\]]+)\]/);
+    if (sec) { section = sec[1].trim(); continue; }
+    const kv = line.match(/^([^=]+)=(.*)$/);
+    if (kv) pairs.push({ section, key: kv[1].trim(), value: kv[2].trim() });
+  }
+  return pairs;
+}
+
+function cfgParseXML(text) {
+  const pairs = [];
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('Invalid XML');
+  function walk(node, parts) {
+    for (const child of node.children) {
+      if (child.children.length === 0) pairs.push({ section: parts.join(' › '), key: child.tagName, value: child.textContent.trim() });
+      else walk(child, [...parts, child.tagName]);
+    }
+  }
+  walk(doc.documentElement, [doc.documentElement.tagName]);
+  return pairs;
+}
+
+function cfgParseTXT(text) {
+  const pairs = []; let section = 'General', idx = 0;
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) { section = 'Group ' + (++idx); continue; }
+    if (line[0] === '#' || line.startsWith('//')) continue;
+    const m = line.match(/^([^=:]+)[=:](.*)$/);
+    if (m) pairs.push({ section, key: m[1].trim(), value: m[2].trim() });
+  }
+  return pairs;
+}
+
+function cfgDetectTab(pairs) {
+  const t = pairs.find(p => p.key.toLowerCase() === 'tab');
+  if (!t) return 'all';
+  const v = t.value.toLowerCase();
+  return v.includes('photo') ? 'photo' : v.includes('upscal') ? 'upscaler' : v.includes('dds') ? 'dds' : 'all';
+}
+
+function cfgImportFile(inp) {
+  const file = inp.files[0]; if (!file) return; inp.value = '';
+  const ext = file.name.split('.').pop().toLowerCase();
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const pairs = ext === 'xml' ? cfgParseXML(e.target.result)
+                  : ext === 'ini' ? cfgParseINI(e.target.result)
+                  : cfgParseTXT(e.target.result);
+      const cfg = { name: file.name, tab: cfgDetectTab(pairs), pairs, applied: true };
+      CFG.configs.push(cfg);
+      CFG.activeIdx = CFG.configs.length - 1;
+      cfgApply(cfg);
+      cfgRenderList();
+      cfgRenderKV(cfg);
+      cfgSetStatus('Loaded: ' + file.name + ' (' + pairs.length + ' settings)');
+      toast(`Imported "${file.name}"`, 'info', 3500);
+    } catch(err) { cfgSetStatus('Parse error: ' + err.message); }
+  };
+  r.readAsText(file);
+}
+
+function cfgOnDrop(e) {
+  e.preventDefault();
+  document.getElementById('cfg-dropzone').style.borderColor = 'var(--border2)';
+  const file = e.dataTransfer.files[0]; if (!file) return;
+  const inp = { files: [file], value: '' };
+  cfgImportFile(inp);
+}
+
+function cfgApply(cfg) {
+  const KV = {};
+  for (const p of cfg.pairs) KV[(p.section + '.' + p.key).toLowerCase()] = p.value;
+  const get = (...keys) => { for (const k of keys) if (KV[k.toLowerCase()] != null) return KV[k.toLowerCase()]; return null; };
+
+  const fmt = get('output.format','general.format','dds editor.format');
+  if (fmt && FORMATS[fmt.toUpperCase()]) selFmt(fmt.toUpperCase());
+
+  const mips = get('mipmap.levels','general.miplevels');
+  if (mips !== null) { const mv = parseInt(mips); if (!isNaN(mv)) selMip(mv === 0 ? 'Keep' : mv); }
+
+  const p2 = get('resize.keepaspectratio','resize.pow2snap','general.pow2snap');
+  if (p2 !== null) { const chk = document.getElementById('pow2-snap-chk'); if (chk) { chk.checked = p2==='1'||p2.toLowerCase()==='true'; togglePow2Snap(chk); } }
+
+  const p2max = get('resize.maxsize','resize.pow2max');
+  if (p2max !== null && !isNaN(parseInt(p2max))) setPow2Max(parseInt(p2max));
+
+  const autoMip = get('mipmap.auto','general.automipgen');
+  if (autoMip !== null) { const chk = document.getElementById('auto-mipgen-chk'); if (chk) { chk.checked = autoMip==='1'||autoMip.toLowerCase()==='true'; chk.dispatchEvent(new Event('change')); } }
+}
+
+function cfgRenderList() {
+  const list = document.getElementById('cfg-list');
+  document.getElementById('cfg-empty-msg').style.display = CFG.configs.length ? 'none' : 'block';
+  list.innerHTML = '';
+  if (!CFG.configs.length) { list.appendChild(document.getElementById('cfg-empty-msg')); document.getElementById('cfg-active-display').textContent = '— none —'; return; }
+  CFG.configs.forEach((cfg, idx) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--panel2);border:1px solid ' + (idx===CFG.activeIdx?'var(--cyan)':'var(--border)') + ';border-radius:var(--radius);cursor:pointer;';
+    row.innerHTML = `<span style="flex:1;font-size:9px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cfg.name}</span>
+      <span style="font-size:8px;color:var(--text2);background:var(--bg);padding:1px 5px;border-radius:2px;">${cfg.tab}</span>
+      <button onclick="cfgToggleApply(${idx},event)" style="padding:2px 6px;background:${cfg.applied?'rgba(0,255,136,0.15)':'rgba(90,100,128,0.15)'};border:1px solid ${cfg.applied?'var(--green)':'var(--border2)'};border-radius:3px;cursor:pointer;font-size:8px;color:${cfg.applied?'var(--green)':'var(--text2)'};">${cfg.applied?'ON':'OFF'}</button>
+      <button onclick="cfgRemove(${idx},event)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:0 2px;" onmouseenter="this.style.color='var(--pink)'" onmouseleave="this.style.color='var(--text3)'">✕</button>`;
+    row.onclick = () => { CFG.activeIdx = idx; cfgRenderList(); cfgRenderKV(cfg); };
+    list.appendChild(row);
+  });
+  const a = CFG.configs[CFG.activeIdx];
+  document.getElementById('cfg-active-display').textContent = a ? a.name + '  •  ' + a.pairs.length + ' settings  •  tab: ' + a.tab : '— none —';
+}
+
+function cfgRenderKV(cfg) {
+  document.getElementById('cfg-kv-empty').style.display = 'none';
+  const container = document.getElementById('cfg-sections');
+  container.style.display = 'block';
+  container.innerHTML = '';
+
+  // Group pairs by section
+  const sections = {};
+  for (const p of cfg.pairs) {
+    if (!sections[p.section]) sections[p.section] = [];
+    sections[p.section].push(p);
+  }
+
+  // Header card
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:12px 16px;background:var(--panel);border:1px solid var(--border2);border-radius:8px;margin-bottom:14px;display:flex;align-items:center;gap:12px;';
+  header.innerHTML = `
+    <div style="font-size:22px;opacity:0.5;">⚙</div>
+    <div>
+      <div style="font-size:11px;color:var(--text);font-weight:bold;letter-spacing:0.1em;">${cfg.name}</div>
+      <div style="font-size:8px;color:var(--text2);margin-top:2px;letter-spacing:0.12em;">
+        TAB: <span style="color:var(--cyan);">${cfg.tab.toUpperCase()}</span>
+        &nbsp;·&nbsp; ${cfg.pairs.length} SETTINGS
+        &nbsp;·&nbsp; ${Object.keys(sections).length} SECTIONS
+      </div>
+    </div>
+    <div style="margin-left:auto;">
+      <span style="padding:3px 10px;background:${cfg.applied?'rgba(0,255,136,0.15)':'rgba(90,100,128,0.12)'};border:1px solid ${cfg.applied?'var(--green)':'var(--border2)'};border-radius:4px;font-size:8px;color:${cfg.applied?'var(--green)':'var(--text2)'};">${cfg.applied?'ACTIVE':'INACTIVE'}</span>
+    </div>`;
+  container.appendChild(header);
+
+  // Section cards
+  for (const [sectionName, pairs] of Object.entries(sections)) {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--panel);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden;';
+
+    const cardHead = document.createElement('div');
+    cardHead.style.cssText = 'padding:7px 14px;background:var(--panel2);border-bottom:1px solid var(--border);font-size:8px;color:var(--text2);letter-spacing:0.22em;text-transform:uppercase;';
+    cardHead.textContent = sectionName;
+    card.appendChild(cardHead);
+
+    const rows = document.createElement('div');
+    for (const p of pairs) {
+      // Skip meta keys like Tab
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--border);gap:8px;';
+      row.style.borderBottom = pairs.indexOf(p) === pairs.length - 1 ? 'none' : '1px solid var(--border)';
+
+      // Determine value display style
+      const val = p.value;
+      const isTrue  = val.toLowerCase() === 'true'  || val === '1';
+      const isFalse = val.toLowerCase() === 'false' || val === '0';
+      let valHtml;
+      if (isTrue) {
+        valHtml = `<span style="padding:2px 8px;background:rgba(0,255,136,0.15);border:1px solid var(--green);border-radius:3px;font-size:8px;color:var(--green);">ON</span>`;
+      } else if (isFalse) {
+        valHtml = `<span style="padding:2px 8px;background:rgba(90,100,128,0.12);border:1px solid var(--border2);border-radius:3px;font-size:8px;color:var(--text2);">OFF</span>`;
+      } else if (!isNaN(val) && val !== '') {
+        valHtml = `<span style="padding:2px 10px;background:rgba(176,96,255,0.12);border:1px solid rgba(176,96,255,0.4);border-radius:3px;font-size:9px;color:var(--purple);font-weight:bold;">${val}</span>`;
+      } else {
+        valHtml = `<span style="padding:2px 10px;background:rgba(0,245,255,0.08);border:1px solid rgba(0,245,255,0.2);border-radius:3px;font-size:9px;color:var(--cyan);">${val || '—'}</span>`;
+      }
+
+      row.innerHTML = `
+        <span style="flex:1;font-size:9px;color:var(--text);letter-spacing:0.06em;">${p.key}</span>
+        ${valHtml}`;
+      rows.appendChild(row);
+    }
+    card.appendChild(rows);
+    container.appendChild(card);
+  }
+}
+
+function cfgToggleApply(idx, e) {
+  e.stopPropagation();
+  CFG.configs[idx].applied = !CFG.configs[idx].applied;
+  if (CFG.configs[idx].applied) cfgApply(CFG.configs[idx]);
+  cfgRenderList();
+}
+
+function cfgRemove(idx, e) {
+  e.stopPropagation();
+  CFG.configs.splice(idx, 1);
+  CFG.activeIdx = Math.min(CFG.activeIdx, CFG.configs.length - 1);
+  if (!CFG.configs.length) {
+    document.getElementById('cfg-kv-empty').style.display = 'flex';
+    document.getElementById('cfg-sections').style.display = 'none';
+    document.getElementById('cfg-sections').innerHTML = '';
+  } else if (CFG.activeIdx >= 0) {
+    cfgRenderKV(CFG.configs[CFG.activeIdx]);
+  }
+  cfgRenderList();
+}
+
+function cfgSetStatus(msg) { const el = document.getElementById('cfg-status'); if (el) el.textContent = msg; }
+
+function cfgDownloadTemplate(type) {
+  let content, name;
+  if (type === 'ini') {
+    content = [
+      '; DDS Editor by Vans — Config Template',
+      '; Lines starting with ; are comments.',
+      '; Tab = DDS Editor | Photo Editor | Upscaler',
+      '',
+      '[General]',
+      'Tab = DDS Editor',
+      '',
+      '[Output]',
+      '; DXT1 DXT3 DXT5 BC7 A8R8G8B8 A1R5G5B5 L8 A8 ATI1 ATI2',
+      'Format = DXT5',
+      '',
+      '[Resize]',
+      'KeepAspectRatio = false',
+      '',
+      '[Mipmap]',
+      '; 0 = Keep original',
+      'Levels = 0',
+      'Auto = false',
+      '',
+      '[Options]',
+      'AutoConvA8R8G8B8 = false',
+      'AutoConvTarget = DXT5',
+    ].join('\n');
+    name = 'dds_editor_config.ini';
+  } else {
+    content = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<!-- DDS Editor by Vans — Config Template -->',
+      '<!-- Tab: DDS Editor | Photo Editor | Upscaler -->',
+      '<DDSEditorConfig>',
+      '  <General><Tab>DDS Editor</Tab></General>',
+      '  <Output>',
+      '    <!-- DXT1 DXT3 DXT5 BC7 A8R8G8B8 A1R5G5B5 L8 A8 ATI1 ATI2 -->',
+      '    <Format>DXT5</Format>',
+      '  </Output>',
+      '  <Resize><KeepAspectRatio>false</KeepAspectRatio></Resize>',
+      '  <Mipmap><Levels>0</Levels><Auto>false</Auto></Mipmap>',
+      '  <Options><AutoConvA8R8G8B8>false</AutoConvA8R8G8B8><AutoConvTarget>DXT5</AutoConvTarget></Options>',
+      '</DDSEditorConfig>',
+    ].join('\n');
+    name = 'dds_editor_config.xml';
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+let _toastId = 0;
+function toast(msg, type = 'info', duration = 3500) {
+  const id = ++_toastId;
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.id = 'toast-' + id;
+  el.innerHTML = `<span class="toast-icon"></span><span class="toast-msg">${msg}</span><button class="toast-close" onclick="toastDismiss(${id})">✕</button><span class="toast-bar" style="animation-duration:${duration}ms"></span>`;
+  document.getElementById('toast-container').appendChild(el);
+  // Trigger enter animation
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+  // Auto-dismiss
+  setTimeout(() => toastDismiss(id), duration);
+}
+function toastDismiss(id) {
+  const el = document.getElementById('toast-' + id);
+  if (!el) return;
+  el.classList.remove('show');
+  el.classList.add('hide');
+  setTimeout(() => el.remove(), 320);
+}
+
+// ═══════════════════════════════════════════════════════
+//  HAPTIC FEEDBACK  (mobile double-pulse on job done)
+// ═══════════════════════════════════════════════════════
+function hapticDone() {
+  if (navigator.vibrate) navigator.vibrate([80, 60, 80]);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SAVE CONFIG  (snapshots current tab settings to .ini)
+// ═══════════════════════════════════════════════════════
+function saveConfig(tab) {
+  let lines = [], name;
+
+  if (tab === 'dds') {
+    name = 'dds_editor_config.ini';
+    lines = [
+      '; DDS Editor by Vans — Saved Config',
+      '[General]',
+      'Tab = DDS Editor',
+      '',
+      '[Output]',
+      'Format = ' + (S.keepOrigFmt ? 'KEEPORIG' : S.targetFmt),
+      'AutoConvA8R8G8B8 = ' + S.autoConvA8R8G8B8,
+      'AutoConvTarget = ' + S.a8r8Target,
+      '',
+      '[Resize]',
+      'KeepOrigSize = ' + S.keepOrigSize,
+      'Width = ' + (S.keepOrigSize ? 0 : S.outW),
+      'Height = ' + (S.keepOrigSize ? 0 : S.outH),
+      'KeepAspectRatio = ' + S.pow2Snap,
+      'MaxSize = ' + S.pow2Max,
+      'SkipSmaller = ' + S.skipSmaller,
+      'SkipScale = ' + S.skipScale,
+      'ProtectTiny = ' + S.protectTiny,
+      'ProtectTinyW = ' + S.protectTinyW,
+      'ProtectTinyH = ' + S.protectTinyH,
+      '',
+      '[Mipmap]',
+      'Levels = ' + (S.mipLevels === 'keep' ? 0 : S.mipLevels),
+      'Auto = ' + S.autoMipGen,
+      '',
+      '[Options]',
+      'KeepOrigFilename = ' + (document.getElementById('keep-name-chk')?.checked ?? true),
+      'OverwriteOnExport = ' + (document.getElementById('overwrite-chk')?.checked ?? true),
+    ];
+  } else if (tab === 'upscaler') {
+    name = 'upscaler_config.ini';
+    const sharpen = document.getElementById('usc-pass-sharpen')?.checked ?? false;
+    const denoise = document.getElementById('usc-pass-denoise')?.checked ?? false;
+    const detail  = document.getElementById('usc-pass-detail')?.checked  ?? false;
+    const contrast= document.getElementById('usc-pass-contrast')?.checked?? false;
+    const edge    = document.getElementById('usc-pass-edge')?.checked    ?? false;
+    const chroma  = document.getElementById('usc-pass-chroma')?.checked  ?? false;
+    lines = [
+      '; DDS Editor by Vans — Upscaler Saved Config',
+      '[General]',
+      'Tab = Upscaler',
+      '',
+      '[Enhancement]',
+      'Sharpening = ' + sharpen,
+      'SharpeningStrength = ' + (document.getElementById('usc-sharpen-num')?.value ?? 60),
+      'Denoise = ' + denoise,
+      'DenoiseStrength = ' + (document.getElementById('usc-denoise-num')?.value ?? 50),
+      'Detail = ' + detail,
+      'DetailStrength = ' + (document.getElementById('usc-detail-num')?.value ?? 55),
+      'LocalContrast = ' + contrast,
+      'LocalContrastStrength = ' + (document.getElementById('usc-contrast-num')?.value ?? 30),
+      'EdgePreservation = ' + edge,
+      'ChromaSmoothing = ' + chroma,
+      '',
+      '[Output]',
+      'Format = ' + (document.getElementById('usc-out-fmt')?.value ?? 'same'),
+      'AddSuffix = ' + (document.getElementById('usc-suffix-chk')?.checked ?? true),
+    ];
+  } else if (tab === 'photo') {
+    name = 'photo_editor_config.ini';
+    lines = [
+      '; DDS Editor by Vans — Photo Editor Saved Config',
+      '[General]',
+      'Tab = Photo Editor',
+      '; No persistent settings to save for Photo Editor — canvas state is session-only.',
+    ];
+  }
+
+  const content = lines.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  toast(`Config saved: ${name}`, 'ok', 3000);
 }
 
 // ═══════════════════════════════════════════════════════
