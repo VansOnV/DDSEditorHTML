@@ -69,3 +69,10 @@ What does "Keep Aspect Ratio (Recommended For Batch Resizing) do?
 - Added custom configuration settings!
 - You can use my provided configuration settings! Just import them in the Config Tab!
 - Overall enhanced experience
+
+
+## Preview
+https://github.com/user-attachments/assets/b10063e6-4957-4472-a6fe-f00946c852e2
+
+
+
